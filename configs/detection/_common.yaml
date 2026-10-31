@@ -1,0 +1,35 @@
+# Hyperparameter bersama seluruh eksperimen deteksi objek (proposal Tabel 3.7).
+# Setiap file eksperimen mewarisi file ini melalui `_base_`, sehingga kondisi pelatihan identik.
+data:
+  yaml: datasets/sunrgbd_yolo/sunrgbd_detect.yaml      # dihasilkan oleh src/data/prepare_sunrgbd.py
+  integrity_report: outputs/dataset/integrity_report.json
+  require_integrity: true
+
+output:
+  root: outputs
+  group: detection
+
+train:
+  epochs: 100
+  batch: 16
+  imgsz: 640
+  optimizer: AdamW
+  lr0: 0.001
+  lrf: 0.01            # LR ratio
+  weight_decay: 0.0005
+  warmup_epochs: 3
+  cos_lr: true         # LR scheduler cosine
+  patience: 25         # early stopping
+  amp: true
+  seed: 42
+  deterministic: true
+  workers: 8
+  plots: true
+
+kd:
+  enabled: false
+
+inference:             # Sub-bab 3.2.4.1
+  conf: 0.25
+  iou: 0.45
+  max_det: 100

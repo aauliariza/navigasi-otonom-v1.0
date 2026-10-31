@@ -1,0 +1,35 @@
+# Hyperparameter bersama seluruh eksperimen monocular depth estimation (proposal Tabel 3.8).
+data:
+  yaml: datasets/sunrgbd_yolo/sunrgbd_depth.yaml        # dihasilkan oleh src/data/prepare_sunrgbd.py
+  integrity_report: outputs/dataset/integrity_report.json
+  require_integrity: true
+
+output:
+  root: outputs
+  group: depth
+
+train:
+  epochs: 100
+  batch: 16
+  imgsz: 640
+  optimizer: AdamW
+  lr0: 0.001
+  lrf: 0.01
+  weight_decay: 0.0005
+  warmup_epochs: 3
+  cos_lr: true
+  patience: 25
+  amp: true
+  seed: 42
+  deterministic: true
+  workers: 8
+  plots: true
+
+# Log-affine calibration D_metric = exp(a log D_pred + b) setelah training (Sub-bab 3.2.4.3)
+calibration:
+  enabled: true
+  split: train        # dataset untuk fitting (a, b); bukan validation agar tidak terjadi kebocoran
+  max_images: 1000
+
+kd:
+  enabled: false

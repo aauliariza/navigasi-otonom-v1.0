@@ -1,0 +1,36 @@
+# Konfigurasi dataset SUN RGB-D (proposal Sub-bab 3.2.3)
+source:
+  # Folder hasil ekstraksi SUNRGBD.zip (berisi kv1/ kv2/ realsense/ xtion/)
+  sunrgbd_root: datasets/raw/SUNRGBD
+  # Split resmi: SUNRGBDtoolbox/traintestSUNRGBD/allsplit.mat (alltrain = 5285, alltest = 5050)
+  split_file: datasets/raw/SUNRGBDtoolbox/traintestSUNRGBD/allsplit.mat
+  # Anotasi 2D bounding box resmi
+  bbox_meta: datasets/raw/SUNRGBDMeta2DBB_v2.mat
+  bbox_source: meta2dbb        # meta2dbb (SUNRGBDMeta2DBB_v2.mat) | annotation2d (annotation2Dfinal/index.json)
+  depth_dir: depth_bfx         # depth_bfx (refined, digunakan SUNRGBDMeta toolbox) | depth (raw sensor)
+
+split:
+  # alltrain -> train, alltest -> val (nama subset mengikuti Tabel 3.6 proposal)
+  expected_counts: {train: 5285, val: 5050}
+  strict_counts: true          # pipeline gagal bila jumlah pasangan valid != expected_counts
+
+depth:
+  min_depth: 0.001             # meter (Sub-bab 3.2.4.3)
+  max_depth: 10.0              # meter
+  out_of_range: invalidate     # invalidate (default, nilai >10 m -> invalid) | clip
+  png_scale: 1000              # uint16 PNG, 1 unit = 1 mm; 0 = invalid
+
+annotation:
+  class_id: 0
+  class_name: objek
+  min_box_side: 4              # piksel (Sub-bab 3.2.3.3)
+
+output:
+  root: datasets/sunrgbd_yolo  # images/{train,val}, depth/{train,val}, labels/{train,val}, meta/
+  detect_yaml: datasets/sunrgbd_yolo/sunrgbd_detect.yaml
+  depth_yaml: datasets/sunrgbd_yolo/sunrgbd_depth.yaml
+  report_dir: outputs/dataset
+
+validation:
+  num_visual_samples: 12
+  min_valid_depth_ratio: 0.0   # pasangan dengan rasio piksel depth valid <= nilai ini dianggap rusak

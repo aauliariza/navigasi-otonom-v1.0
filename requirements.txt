@@ -1,0 +1,17 @@
+# Python 3.11 (lingkungan penelitian, Tabel 3.5 proposal)
+# Install PyTorch sesuai versi CUDA terlebih dahulu dari https://pytorch.org/get-started/locally/
+torch>=2.4.0
+torchvision>=0.19.0
+# Versi ultralytics di-pin minimal 8.4.194: API DistillationModel (ultralytics/nn/distill_model.py)
+# dan task "depth" (YOLO26-Depth) yang digunakan repository ini diverifikasi pada versi tersebut.
+ultralytics>=8.4.194,<9.0.0
+numpy>=1.24.0
+opencv-python>=4.8.0
+scipy>=1.11.0
+PyYAML>=6.0
+pandas>=2.0
+matplotlib>=3.7
+# Interface demonstrasi (app/main.py)
+gradio>=4.0
+# Pengujian
+pytest>=7.4

@@ -1,0 +1,13 @@
+_base_: _common.yaml
+experiment:
+  id: det_03_yolo26n_feature_kd
+  description: "Eksperimen 5.1-3: YOLO26x -> YOLO26n, Feature KD (score-weighted L2, layer 16/19/22, dis=6.0)"
+model:
+  arch: yolo26n.yaml
+  weights: yolo26n.pt
+  attention: none
+kd:
+  enabled: true
+  teacher_config: configs/detection/teacher_x.yaml
+  feature: {enabled: true, weight: 6.0}
+  prediction: {enabled: false}

@@ -1,0 +1,10 @@
+_base_: _common.yaml
+experiment:
+  id: det_01_yolo26x_teacher
+  description: "Eksperimen 5.1-1: YOLO26x (teacher), dilatih tanpa KD"
+model:
+  arch: yolo26x.yaml
+  weights: yolo26x.pt       # bobot pretrained resmi Ultralytics (COCO); null = dari nol
+  attention: none
+train:
+  batch: 8                  # Tabel 3.7: YOLO26x batch 8

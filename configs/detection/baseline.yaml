@@ -1,0 +1,8 @@
+_base_: _common.yaml
+experiment:
+  id: det_02_yolo26n_baseline
+  description: "Eksperimen 5.1-2: YOLO26n student baseline, tanpa KD"
+model:
+  arch: yolo26n.yaml
+  weights: yolo26n.pt
+  attention: none

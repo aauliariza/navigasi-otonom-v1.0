@@ -1,0 +1,35 @@
+# Kriteria EWM-SAW (Sub-bab 3.2.5.1 dan 3.2.5.2). Nilai berasal dari hasil evaluasi yang benar-benar dijalankan.
+ewm_basis: raw                 # raw (Eq. 3.29 pada x_ij) | normalized (analisis sensitivitas)
+memory_column: gpu_memory_gb   # puncak memori GPU saat inferensi (benchmark model-only)
+missing_policy: drop_criterion # drop_criterion | error  (mis. memori GPU tidak tersedia pada CPU)
+detection:
+  results: outputs/evaluation/detection/detection_results.csv
+  output_dir: outputs/model_selection/detection
+  criteria:
+    - {column: mAP50,         type: benefit}
+    - {column: mAP50-95,      type: benefit}
+    - {column: precision,     type: benefit}
+    - {column: recall,        type: benefit}
+    - {column: f1,            type: benefit}
+    - {column: fps,           type: benefit}
+    - {column: params,        type: cost}
+    - {column: gflops,        type: cost}
+    - {column: gpu_memory_gb, type: cost}
+depth:
+  results: outputs/evaluation/depth/depth_results.csv
+  output_dir: outputs/model_selection/depth
+  criteria:
+    - {column: delta1,        type: benefit}
+    - {column: delta2,        type: benefit}
+    - {column: delta3,        type: benefit}
+    - {column: fps,           type: benefit}
+    - {column: abs_rel,       type: cost}
+    - {column: sq_rel,        type: cost}
+    - {column: rmse,          type: cost}
+    - {column: rmse_log,      type: cost}
+    - {column: params,        type: cost}
+    - {column: gflops,        type: cost}
+    - {column: gpu_memory_gb, type: cost}
+# Model student yang dipakai pada integrasi: alternatif berperingkat tertinggi di antara student KD
+# (Sub-bab 3.2.5.3 memakai "YOLO26n dan YOLO26n-Depth hasil Knowledge Distillation").
+integration_pool: kd_students  # kd_students | all

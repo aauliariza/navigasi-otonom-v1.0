@@ -1,0 +1,16 @@
+_base_: _common.yaml
+experiment:
+  id: dep_05_yolo26n_depth_boundary_kd
+  description: "Eksperimen 5.2-5: Boundary Distillation gradient magnitude (Eq. 2.11-2.12)"
+model:
+  arch: yolo26n-depth.yaml
+  weights: yolo26n-depth.pt
+  attention: none
+kd:
+  enabled: true
+  teacher_config: configs/depth/teacher_x.yaml
+  teacher_space: calibrated     # calibrated | raw
+  output:   {enabled: false, weight: 0.5, beta: 0.1}
+  feature:  {enabled: false, weight: 0.2, direction: teacher_to_student, normalize: true}   # layer 16/19/22
+  boundary: {enabled: true, weight: 0.1, beta: 0.1, space: linear}
+  relative: {enabled: false, weight: 0.1, num_pairs: 4096, tolerance: 0.03, margin: 0.0, equal_pair_loss: squared, seed: 42}

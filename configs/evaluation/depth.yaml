@@ -1,0 +1,22 @@
+# Evaluasi seluruh konfigurasi monocular depth estimation (Sub-bab 3.2.5.2)
+data_yaml: datasets/sunrgbd_yolo/sunrgbd_depth.yaml
+split: val
+imgsz: 640
+device: 0
+min_depth: 0.001
+max_depth: 10.0
+num_visual_samples: 8
+benchmark: {warmup: 50, iters: 300, half: false}
+output_dir: outputs/evaluation/depth
+models:
+  - {name: YOLO26x-Depth,                 config: configs/depth/teacher_x.yaml}
+  - {name: YOLO26n-Depth,                 config: configs/depth/baseline.yaml}
+  - {name: YOLO26n-Depth+OutputKD,        config: configs/depth/output_kd.yaml}
+  - {name: YOLO26n-Depth+FeatureKD,       config: configs/depth/feature_kd.yaml}
+  - {name: YOLO26n-Depth+BoundaryKD,      config: configs/depth/boundary_kd.yaml}
+  - {name: YOLO26n-Depth+RelativeKD,      config: configs/depth/relative_kd.yaml}
+  - {name: YOLO26n-Depth+FullKD,          config: configs/depth/full_kd.yaml}
+  - {name: YOLO26n-Depth+KD(CBAM-teacher),     config: configs/depth/cbam_kd.yaml}
+  - {name: YOLO26n-Depth+FullKD(CBAM-teacher), config: configs/depth/cbam_full_kd.yaml}
+extra_models:
+  - {name: YOLO26x-Depth+CBAM,            config: configs/depth/teacher_x_cbam.yaml}

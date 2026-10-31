@@ -1,0 +1,11 @@
+_base_: _common.yaml
+experiment:
+  id: dep_01_yolo26x_depth_teacher
+  description: "Eksperimen 5.2-1: YOLO26x-Depth (teacher), tanpa KD"
+model:
+  arch: yolo26x-depth.yaml
+  weights: yolo26x-depth.pt   # bobot pretrained resmi Ultralytics; null = dari nol
+  attention: none
+train:
+  batch: 8
+  lr0: 0.0005                 # Tabel 3.8: YOLO26x-Depth learning rate 0,0005

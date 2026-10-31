@@ -1,0 +1,46 @@
+# Konfigurasi sistem terintegrasi (Sub-bab 3.2.4.5 - 3.2.4.7)
+models:
+  # Default: checkpoint student KD hasil EWM-SAW (outputs/model_selection/selected_models.json).
+  selected_models: outputs/model_selection/selected_models.json
+  detection_weights: null       # isi path .pt untuk mengganti pilihan EWM-SAW secara eksplisit
+  depth_weights: null
+device: cpu                     # "cpu" atau "0" (GPU pertama)
+
+detection:                      # Sub-bab 3.2.4.1
+  imgsz: 640
+  conf: 0.25
+  iou: 0.45
+  max_det: 100
+
+depth:
+  imgsz: 640
+  resolution: model             # model = depth map keluaran model (1/4 imgsz) + spatial alignment Eq. 3.11-3.12
+                                # image = depth di-upsample ke resolusi citra (alignment menjadi identitas)
+
+distance:                       # Sub-bab 3.2.4.6
+  roi_ratio: 0.6                # inner ROI 60%
+  roi_min_size: 4               # piksel
+  min_depth: 0.1                # meter
+  max_depth: 10.0
+  min_valid_ratio: 0.30         # R_valid >= 0,30
+  percentiles: [5, 95]
+  clip_mode: clip               # clip | trim
+  mode: axial                   # axial (utama) | euclidean (perlu intrinsics)
+  intrinsics: null              # [[fx,0,cx],[0,fy,cy],[0,0,1]] pada resolusi citra; wajib bila mode=euclidean
+
+fusion:
+  # Confidence hasil fusion untuk aturan low-confidence. Proposal tidak mendefinisikan rumusnya:
+  # detection = confidence deteksi; detection_x_valid_ratio = confidence deteksi x R_valid.
+  confidence: detection
+
+navigation:                     # Sub-bab 3.2.4.7
+  roi_width_ratio: 0.6
+  sectors: [FL, L, CTR, R, FR]
+  priority: [CTR, L, R, FL, FR]
+  min_overlap: 0.05
+  block_distance: 1.0
+  invalid_depth_blocks: true
+  low_confidence_blocks: true
+  low_conf_threshold: 0.20
+
+output_dir: outputs/integrated_system

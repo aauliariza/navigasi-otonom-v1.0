@@ -1,0 +1,15 @@
+_base_: _common.yaml
+experiment:
+  id: det_05_yolo26n_ca_teacher_kd
+  description: >-
+    Eksperimen 5.1-5: YOLO26x+CA -> YOLO26n dengan KD mekanisme framework (Feature KD score-weighted L2, dis=6.0,
+    Sub-bab 3.2.4.2). Berbeda dari 5.1-6: TIDAK memakai Prediction KD; satu-satunya beda terhadap 5.1-3 adalah teacher ber-CA.
+model:
+  arch: yolo26n.yaml
+  weights: yolo26n.pt
+  attention: none           # student tetap YOLO26n
+kd:
+  enabled: true
+  teacher_config: configs/detection/teacher_x_ca.yaml
+  feature: {enabled: true, weight: 6.0}
+  prediction: {enabled: false}

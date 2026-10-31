@@ -1,0 +1,25 @@
+# Evaluasi seluruh konfigurasi deteksi objek pada split validation SUN RGB-D (Sub-bab 3.2.5.1)
+data_yaml: datasets/sunrgbd_yolo/sunrgbd_detect.yaml
+split: val
+imgsz: 640
+batch: 16
+device: 0                 # 0 = GPU pertama; "cpu" untuk CPU
+val_conf: 0.001           # ambang confidence untuk kurva PR / mAP (standar Ultralytics)
+operating_point:          # P/R/F1 utama: deteksi yang dipakai saat inferensi (Sub-bab 3.2.4.1)
+  conf: 0.25
+  iou_nms: 0.45
+  max_det: 100
+  match_iou: 0.5          # TP/FP/FN pada IoU 0,5 (Sub-bab 3.2.5.1)
+benchmark: {warmup: 50, iters: 300, half: false}
+output_dir: outputs/evaluation/detection
+# Alternatif EWM-SAW: enam konfigurasi eksperimen bagian 5.1
+models:
+  - {name: YOLO26x,               config: configs/detection/teacher_x.yaml}
+  - {name: YOLO26n,               config: configs/detection/baseline.yaml}
+  - {name: YOLO26n+FeatureKD,     config: configs/detection/feature_kd.yaml}
+  - {name: YOLO26n+PredictionKD,  config: configs/detection/prediction_kd.yaml}
+  - {name: YOLO26n+KD(CA-teacher),       config: configs/detection/ca_kd.yaml}
+  - {name: YOLO26n+Feat+PredKD(CA-teacher), config: configs/detection/ca_full_kd.yaml}
+# Teacher CA dievaluasi sebagai informasi tambahan (bukan alternatif EWM-SAW)
+extra_models:
+  - {name: YOLO26x+CA,            config: configs/detection/teacher_x_ca.yaml}
