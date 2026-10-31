@@ -85,7 +85,8 @@ def build_report(root: Path, out_dir: Path | None = None) -> str:
         ("3. Evaluasi monocular depth estimation", "depth", "depth_results.csv", DEP_IDS, DEP_COLS),
     ):
         s += [f"## {title}", ""]
-        for split, label in (("val", "validasi internal (dasar EWM-SAW)"), ("test", "official test (evaluasi akhir)")):
+        for split, label in (("val", "dasar EWM-SAW (mode proposal: alltest 5.050; mode internal: validasi internal)"),
+                             ("test", "official test, hanya pada split.mode=internal")):
             rows = experiment_table(root, fname, split, ids, cols)
             if out_dir is not None:
                 save_csv(rows, out_dir / f"experiment_summary_{task}_{split}.csv")

@@ -4,7 +4,7 @@ system_config: configs/system/inference.yaml
 # measured : jarak aktual hasil pengukuran langsung di lingkungan indoor (file CSV, lihat docs/EXPERIMENT_MATRIX.md)
 gt_source: sunrgbd
 data_yaml: datasets/sunrgbd_yolo/sunrgbd_depth.yaml
-split: test                # evaluasi akhir sistem terintegrasi pada official test
+split: val                 # mode split proposal: val = alltest 5.050 (pakai test bila split.mode=internal)
 max_images: null                 # null = seluruh split
 measurements_csv: data_collection/distance_measurements.csv   # untuk gt_source=measured
 match_iou: 0.5                   # pencocokan box anotasi pengukuran dengan box deteksi

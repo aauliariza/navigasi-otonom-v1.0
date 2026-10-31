@@ -66,3 +66,10 @@ ulang terhadap prompt yang diperbarui. Kode yang benar dipertahankan; yang diuba
 
 Kendala lingkungan sesi ini: tidak ada GPU, kamera, dataset SUN RGB-D, maupun bobot pretrained resmi;
 `download.pytorch.org` diblokir proxy (PyTorch dipasang dari PyPI: torch 2.15.0, Python 3.13).
+
+## Revisi: split proposal sebagai default (atas keputusan peneliti)
+
+Atas permintaan peneliti, seluruh model (deteksi dan depth) kini memakai split proposal Tabel 3.6:
+`alltrain` → `train` (5.285), `alltest` → `val` (5.050), tanpa split test terpisah (`split.mode: proposal`,
+keputusan S-0). Konsekuensinya (early stopping, `best.pt`, kalibrasi, EWM-SAW, dan pelaporan memakai set yang
+sama) dicatat sebagai keterbatasan. Mode validasi internal per grup tetap tersedia (`split.mode: internal`).

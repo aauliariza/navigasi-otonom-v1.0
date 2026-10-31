@@ -1,8 +1,12 @@
 """End-to-end SUN RGB-D preparation for both tasks (proposal Sub-bab 3.2.3).
 
 Steps:
-1. Read the OFFICIAL split (``allsplit.mat``: ``alltrain`` 5,285, ``alltest`` 5,050 -> ``test``) and carve a
-   scene-aware internal validation split ``val`` out of ``alltrain`` (``create_split``); ``train`` = the rest.
+1. Read the OFFICIAL split (``allsplit.mat``: ``alltrain`` 5,285, ``alltest`` 5,050) and build the experiment
+   split according to ``split.mode``:
+   * ``proposal`` (default, proposal Tabel 3.6): ``alltrain`` -> ``train`` (5,285), ``alltest`` -> ``val`` (5,050);
+     no separate test split;
+   * ``internal``: ``alltest`` -> ``test`` and a scene-aware internal ``val`` carved out of ``alltrain``
+     (``create_split``); ``train`` = the rest.
 2. Discover scenes and pair RGB with depth by scene identity (``pair_rgb_depth``).
 3. Decode depth (Eq. 3.1-3.2), restrict to 0.001-10 m, save as uint16 mm PNG (``prepare_depth``).
 4. Convert 2D boxes to single-class YOLO labels (``prepare_annotations``).
@@ -67,10 +71,26 @@ def load_official_split(split_file: str | Path) -> dict[str, list[str]]:
     return split
 
 
+SPLIT_MODES = ("proposal", "internal")
+
+
 def build_experiment_split(cfg: dict) -> dict:
-    """Official split + internal validation -> {"train", "val", "test", "groups", ...}; also saved to JSON."""
+    """Experiment split -> {"mode", "train", "val", "test", "groups", ...} (saved as ``meta/splits.json``).
+
+    ``proposal``: train = alltrain (5,285), val = alltest (5,050), test = [] (keputusan S-1).
+    ``internal``: train + val (scene-grouped) = alltrain, test = alltest (keputusan S-2).
+    """
     src, scfg = cfg["source"], cfg["split"]
+    mode = str(scfg.get("mode", "proposal"))
+    if mode not in SPLIT_MODES:
+        raise ValueError(f"split.mode must be one of {SPLIT_MODES}, got '{mode}'")
     official = load_official_split(resolve_path(src["split_file"]))
+    if mode == "proposal":
+        return {
+            "mode": mode, "train": official["train_official"], "val": official["test"], "test": [],
+            "official_sizes": {"alltrain": len(official["train_official"]), "alltest": len(official["test"])},
+            "internal_val": None, "groups": {},
+        }
     iv = scfg.get("internal_val", {})
     inner = internal_validation_split(
         official["train_official"], float(iv.get("fraction", 0.10)), int(iv.get("seed", 42)),
@@ -80,7 +100,7 @@ def build_experiment_split(cfg: dict) -> dict:
     if leaks:
         raise ValueError(f"Internal validation shares {len(leaks)} recording groups with train: {leaks[:5]}")
     record = {
-        "train": inner["train"], "val": inner["val"], "test": official["test"],
+        "mode": mode, "train": inner["train"], "val": inner["val"], "test": official["test"],
         "official_sizes": {"alltrain": len(official["train_official"]), "alltest": len(official["test"])},
         "internal_val": {"fraction": float(iv.get("fraction", 0.10)), "seed": int(iv.get("seed", 42)),
                          "num_groups_train": len({inner["groups"][s] for s in inner["train"]}),
@@ -96,9 +116,8 @@ def prepare(cfg: dict) -> dict:
     root = resolve_path(src["sunrgbd_root"])
     out_root = resolve_path(out["root"])
     split_record = build_experiment_split(cfg)
-    split = {k: split_record[k] for k in ("train", "val", "test")}
-    LOG.info("Split: official alltrain=%d -> train=%d + internal val=%d ; official alltest -> test=%d",
-             split_record["official_sizes"]["alltrain"], len(split["train"]), len(split["val"]), len(split["test"]))
+    split = {k: split_record[k] for k in ("train", "val", "test") if split_record[k]}
+    LOG.info("Split mode '%s': %s", split_record["mode"], {k: len(v) for k, v in split.items()})
 
     scenes = discover_scenes(root, src.get("depth_dir", "depth_bfx"))
     LOG.info("Discovered %d scenes under %s", len(scenes), root)
@@ -110,11 +129,12 @@ def prepare(cfg: dict) -> dict:
         meta = None
 
     for sub in ("images", "depth", "labels"):
-        for s in split:
+        for s in ("train", "val", "test"):  # also removes a stale split of the other mode
             d = out_root / sub / s
             if d.exists():
                 shutil.rmtree(d)
-            d.mkdir(parents=True, exist_ok=True)
+            if s in split:
+                d.mkdir(parents=True, exist_ok=True)
 
     manifest, failures = [], []
     box_stats = {s: Counter() for s in split}
@@ -166,7 +186,9 @@ def prepare(cfg: dict) -> dict:
     save_csv(failures, meta_dir / "preparation_failures.csv", ["split", "scene_id", "error"])
     save_json(split_record, meta_dir / "splits.json")
 
-    common = {"path": str(out_root), "train": "images/train", "val": "images/val", "test": "images/test", "channels": 3}
+    common = {"path": str(out_root), "train": "images/train", "val": "images/val", "channels": 3}
+    if "test" in split:
+        common["test"] = "images/test"
     save_yaml({**common, "nc": 1, "names": {acfg["class_id"]: acfg.get("class_name", CLASS_NAME)}}, resolve_path(out["detect_yaml"]))
     save_yaml(
         {**common, "nc": 1, "names": {0: "depth"}, "depth_scale": dcfg["png_scale"], "min_depth": dcfg["min_depth"], "max_depth": dcfg["max_depth"]},
@@ -174,6 +196,7 @@ def prepare(cfg: dict) -> dict:
     )
     report = {
         "split_file": str(src["split_file"]),
+        "split_mode": split_record["mode"],
         "official_split_sizes": split_record["official_sizes"],
         "experiment_split_sizes": {k: len(v) for k, v in split.items()},
         "internal_val": split_record["internal_val"],

@@ -8,7 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def build_synthetic_dataset(tmp: Path, n_train: int = 6, n_test: int = 3) -> dict:
+def build_synthetic_dataset(tmp: Path, n_train: int = 6, n_test: int = 3, extra: list[str] | None = None) -> dict:
     spec = importlib.util.spec_from_file_location("mk", ROOT / "scripts" / "data" / "make_synthetic_sunrgbd.py")
     mk = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mk)
@@ -29,7 +29,8 @@ def build_synthetic_dataset(tmp: Path, n_train: int = 6, n_test: int = 3) -> dic
             f"output.depth_yaml={tmp / 'data/depth.yaml'}",
             f"output.report_dir={tmp / 'report'}",
             f"split.expected_counts.train_official={n_train}",
-            f"split.expected_counts.test={n_test}",
+            f"split.expected_counts.alltest={n_test}",
+            *(extra or []),
         ],
     )
     prep = prepare(cfg)

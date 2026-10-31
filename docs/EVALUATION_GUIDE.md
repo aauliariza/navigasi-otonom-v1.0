@@ -1,6 +1,6 @@
 # Panduan Evaluasi, Pemilihan Model, Integrasi, dan Navigasi
 
-## 1. Evaluasi model (validasi internal → seleksi; test → laporan akhir)
+## 1. Evaluasi model (split `val`: 5.050 data alltest pada mode proposal)
 
 ```bash
 python -m src.evaluation.evaluate_detection --config configs/evaluation/detection.yaml --include-extra --set split=val device=0
@@ -10,7 +10,8 @@ python -m src.evaluation.evaluate_detection --config configs/evaluation/detectio
 python -m src.evaluation.evaluate_depth --config configs/evaluation/depth.yaml --include-extra --set split=val device=0
 ```
 
-Ulangi dengan `split=test` untuk evaluasi akhir (atau `bash scripts/evaluate_all.sh device=0` untuk keduanya).
+Pada mode proposal hanya ada `val` (5.050); `bash scripts/evaluate_all.sh device=0` otomatis menjalankan `test`
+juga bila dataset dibuat dengan `split.mode=internal`.
 Hasil: `outputs/evaluation/<task>/<split>/`, salinan `metrics.json` di `outputs/<task>/<ID>/evaluation/<split>/`.
 
 | Deteksi | Cara hitung |
@@ -23,7 +24,7 @@ Hasil: `outputs/evaluation/<task>/<split>/`, salinan `metrics.json` di `outputs/
 
 | Depth | Cara hitung |
 |---|---|
-| δ1, δ2, δ3, AbsRel, SqRel, RMSE, RMSE log | Pers. 3.34–3.38, pooled atas piksel valid GT 0,001–10 m, pada resolusi GT, setelah kalibrasi log-affine yang di-fit pada `val` |
+| δ1, δ2, δ3, AbsRel, SqRel, RMSE, RMSE log | Pers. 3.34–3.38, pooled atas piksel valid GT 0,001–10 m, pada resolusi GT, setelah kalibrasi log-affine (di-fit pada `val`, keterbatasan S-0/C-1) |
 | Visual | `samples/*.jpg` = RGB, GT, prediksi, peta error AbsRel; `depth_maps/*_{pred,gt}.npy` |
 
 ## 2. EWM + SAW
@@ -32,7 +33,7 @@ Hasil: `outputs/evaluation/<task>/<split>/`, salinan `metrics.json` di `outputs/
 python -m src.optimization.model_selection --config configs/evaluation/selection.yaml
 ```
 
-Membaca `outputs/evaluation/<task>/val/*_results.csv` (hasil `test` ditolak). Keluaran per tugas:
+Membaca `outputs/evaluation/<task>/val/*_results.csv` (hasil `test` mode internal ditolak). Keluaran per tugas:
 `outputs/selection/<task>_ewm/` (matriks keputusan, proporsi, entropy, diversifikasi, bobot) dan
 `outputs/selection/<task>_saw/` (matriks ternormalisasi, skor, ranking, `ranking.png`, laporan). Checkpoint student
 KD berperingkat tertinggi per tugas ditulis ke `outputs/selection/selected_models.json` (input integrasi).
@@ -55,7 +56,7 @@ Evaluasi akurasi jarak (MAE, RMSE, MAPE):
 python -m src.evaluation.evaluate_distance --config configs/evaluation/distance.yaml
 ```
 
-- `gt_source: sunrgbd` (default, split `test`): box deteksi yang sama direduksi dengan prosedur identik pada depth
+- `gt_source: sunrgbd` (default, split `val` = 5.050): box deteksi yang sama direduksi dengan prosedur identik pada depth
   ground truth (protokol *same-box*).
 - `gt_source: measured`: jarak hasil pengukuran langsung (`data_collection/distance_measurements.csv`, protokol di
   `docs/EXPERIMENT_MATRIX.md` §5).
@@ -88,4 +89,4 @@ sebenarnya, benar/salah), confusion matrix (CSV + PNG), akurasi (Pers. 3.45).
 python -m src.utils.report --root outputs --out outputs/reports/experiment_summary/RESEARCH_REPORT.md
 ```
 
-Tabel per experiment ID (val dan test terpisah); metrik yang belum diukur ditulis `NOT MEASURED`.
+Tabel per experiment ID (split `val`; tabel `test` hanya terisi pada mode internal); metrik yang belum diukur ditulis `NOT MEASURED`.

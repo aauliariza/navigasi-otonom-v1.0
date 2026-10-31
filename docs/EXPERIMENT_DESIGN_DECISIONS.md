@@ -19,10 +19,10 @@ mengubah kode. Pemetaan persamaan proposal ke kode ada di [METHODOLOGY_MAPPING.m
 |---|---|---|---|---|
 | X-1 | Proposal Tabel 3.1: 3 model per tugas | Prompt: DET-01…06 dan DEP-01…09 | Seluruh 6 + 9 eksperimen (plus 2 teacher ber-attention) diimplementasikan (A-1) | BAB 3 perlu diperluas: Tabel 3.1, 3.9–3.20 memuat 6/9 alternatif, bukan 3; `m` pada Pers. 3.30 menjadi 6 dan 9 |
 | X-2 | Proposal Sub-bab 3.2.4.4: 5 komponen KD depth termasuk Object ROI (Pers. 3.10, λ_ROI = 0,2) | Prompt 6.1: 4 komponen, ROI dilarang | Object ROI Distillation **tidak** diimplementasikan; Full KD = output + feature + boundary + relative dengan bobot 0,5/0,2/0,1/0,1 dari Pers. 3.10 | Pers. 3.9–3.10 dan paragraf "lima komponen" (Sub-bab 3.2.4.4 dan 3.2.5.2) perlu direvisi menjadi empat komponen |
-| X-3 | Proposal Tabel 3.6: 5.050 = "Validation" | Prompt 7.2 dan pembagian resmi SUN RGB-D: 5.050 = test | `alltest` dipakai sebagai **test** (evaluasi akhir); validasi internal dipisah dari `alltrain` per grup scene (S-1, S-2) | Tabel 3.6 perlu tiga baris (train / validasi internal / test) |
+| X-3 | Proposal Tabel 3.6: 5.050 = "Validation" | Prompt 7.2: 5.050 = test, validasi internal dari train | **Keputusan peneliti: split proposal** (train 5.285 / val 5.050) untuk semua model (S-0). Mode validasi internal tetap tersedia (`split.mode: internal`, S-1/S-2) | Tabel 3.6 tetap; keterbatasan bias seleksi perlu ditulis di BAB 3 |
 | X-4 | Proposal: CA/CBAM tidak disebut | Prompt 5.6 dan 6.9 | CA pada teacher YOLO26x, CBAM pada teacher YOLO26x-Depth, P3/P4/P5 (A-1) | Perlu sub-bab arsitektur teacher ber-attention dan rujukan Hou et al. (2021), Woo et al. (2018) |
 | X-5 | Proposal Sub-bab 3.2.4.2: KD deteksi = mekanisme framework (score-weighted L2, `dis = 6`) | Prompt: Feature KD dan Prediction KD terpisah | Feature KD = mekanisme framework (Ultralytics `DistillationModel`); Prediction KD = implementasi baru (K-1) | Sub-bab 3.2.4.2 perlu memuat rumus Prediction KD |
-| X-6 | Proposal: kalibrasi log-affine "setelah training", data fitting tidak disebut | Prompt 10: parameter dari data validasi | (a, b) di-fit pada validasi internal (C-1) | Sub-bab 3.2.4.3 perlu menyebut data fitting kalibrasi |
+| X-6 | Proposal: kalibrasi log-affine "setelah training", data fitting tidak disebut | Prompt 10: parameter dari data validasi | (a, b) di-fit pada split `val` (mode proposal: 5.050) (C-1) | Sub-bab 3.2.4.3 perlu menyebut data fitting kalibrasi |
 | X-7 | Proposal Pers. 3.17 `y2' = y1 − 0,2h`, Pers. 3.28 `x / min(x)` | Teks proposal / literatur SAW | Dikoreksi (I-1, M-2) | Kedua persamaan perlu diperbaiki |
 | X-8 | Proposal: NMS IoU 0,45 | Prompt 9: jangan memaksakan NMS pada jalur NMS-free | Head mode eksplisit di config; default one-to-many + NMS IoU 0,45 (D-6) | Sub-bab 3.2.4.1 perlu menyebut head YOLO26 yang dipakai |
 | X-9 | Repository referensi: hysteresis, majority vote, EMERGENCY_STOP, ROI-KD, Optuna | Prompt 21 butir 10–11 | Tidak dipakai | — |
@@ -30,9 +30,9 @@ mengubah kode. Pemetaan persamaan proposal ke kode ada di [METHODOLOGY_MAPPING.m
 ## 1. Alur penelitian (waterfall, Gambar 3.1 dan 3.3)
 
 ```
-SUN RGB-D: alltrain 5.285 → train + val (validasi internal, per grup scene) ; alltest 5.050 → test
+SUN RGB-D (split.mode: proposal): alltrain 5.285 → train ; alltest 5.050 → val (tanpa split test terpisah)
   ├─ prepare_sunrgbd: pairing RGB-depth, dekode depth (m), valid mask, label YOLO 1 kelas, splits.json
-  └─ validate_dataset: integrity gate (training ditolak bila gagal; termasuk cek kebocoran grup train/val)
+  └─ validate_dataset: integrity gate (training ditolak bila gagal; jumlah 5.285 / 5.050, kebocoran sampel)
 Deteksi:  DET-01 YOLO26x ─┬─ DET-02 YOLO26n baseline
                           ├─ DET-03 Feature KD ─ DET-04 Prediction KD
           TEACHER-CA (YOLO26x+CA) ─┬─ DET-05 Prediction KD ─ DET-06 Feature + Prediction KD
@@ -40,9 +40,9 @@ Depth:    DEP-01 YOLO26x-Depth ─┬─ DEP-02 YOLO26n-Depth baseline
                                 ├─ DEP-03 Output / DEP-04 Feature / DEP-05 Boundary / DEP-06 Relative / DEP-07 Full KD
           TEACHER-CBAM (YOLO26x-Depth+CBAM) ─┬─ DEP-08 Output KD ─ DEP-09 Full KD
           (seluruh model depth: kalibrasi log-affine pada val setelah training)
-Evaluasi val → benchmark → EWM → SAW → student KD terpilih (deteksi + depth) ; evaluasi akhir pada test
+Evaluasi val → benchmark → EWM → SAW → student KD terpilih (deteksi + depth)
 Integrasi 1 citra RGB → alignment → inner ROI 60% → jarak (median) → 5 sektor → FORWARD/TURN_LEFT/TURN_RIGHT/STOP
-Evaluasi jarak (MAE/RMSE/MAPE) dan akurasi navigasi (test / skenario indoor) → interface gambar/video/webcam
+Evaluasi jarak (MAE/RMSE/MAPE) dan akurasi navigasi (val SUN RGB-D / data indoor sendiri) → interface gambar/video/webcam
 ```
 
 ## 2. Daftar keputusan
@@ -92,15 +92,24 @@ Evaluasi jarak (MAE/RMSE/MAPE) dan akurasi navigasi (test / skenario indoor) →
   depth uint16 dengan Pers. 3.2, yang berlaku untuk keduanya. Default yang dipakai adalah `depth_bfx`, berkas yang
   dirujuk metadata toolbox SUN RGB-D dan konverter Ultralytics. Untuk memakai depth raw sensor, ganti dengan
   `source.depth_dir: depth`.
-- **S-1 Pembagian data (revisi sesi ini).** `alltrain` (5.285) → `train` + `val` (validasi internal);
+- **S-0 Pembagian data yang dipakai penelitian: split proposal (keputusan peneliti).** `split.mode: proposal`
+  (default): `alltrain` (5.285) → `train`, `alltest` (5.050) → `val`, tanpa split test terpisah; berlaku identik
+  untuk deteksi dan depth (satu set citra). `val` dipakai untuk early stopping dan `best.pt`, kalibrasi log-affine,
+  EWM-SAW, **dan** pelaporan metrik model (Tabel 3.9–3.20) serta evaluasi jarak/navigasi pada SUN RGB-D. Ini
+  sesuai Tabel 3.6 proposal dan praktik umum pada SUN RGB-D (mis. VoteNet/MMDetection3D menamai 5.050 data itu
+  `val`). **Keterbatasan yang harus ditulis di BAB 3:** karena seleksi dan pelaporan memakai set yang sama, metrik
+  model berpotensi sedikit optimistis. Uji independen sistem diperoleh dari data indoor yang diambil sendiri
+  (`gt_source: measured` / `scenarios`, RM 3–4). Pipeline gagal bila `train ≠ 5.285` atau `val ≠ 5.050`
+  (`split.strict_counts`).
+- **S-1 Mode opsional `split.mode: internal`.** `alltrain` (5.285) → `train` + `val` (validasi internal);
   `alltest` (5.050) → `test`. Proposal Tabel 3.6 menamai 5.050 sampel itu "Validation"; sesuai prompt 7.2 dan
   pembagian resmi, sampel tersebut adalah **test** dan hanya dipakai untuk evaluasi akhir. `val` dipakai untuk:
   early stopping dan pemilihan `best.pt` (validator Ultralytics membaca kunci `val`), kalibrasi log-affine (C-1),
   dan EWM-SAW (M-4). Pipeline gagal bila `train + val ≠ 5.285` atau `test ≠ 5.050` (`split.strict_counts`). Bila
   ada data asli yang memang rusak, pengecualiannya harus diputuskan eksplisit dengan `strict_counts: false` dan
-  dicatat. *Versi sebelumnya repository memakai alltest sebagai `val` sehingga early stopping melihat data test;
-  ini telah diperbaiki.*
-- **S-2 ⚠ perlu konfirmasi: validasi internal 10% dari alltrain, dipisah per grup rekaman.** Proposal tidak
+  dicatat. Mode ini tidak dipakai penelitian (S-0), tetapi tetap tersedia untuk analisis tambahan, misalnya
+  memeriksa besarnya bias seleksi.
+- **S-2 Validasi internal pada mode `internal`: 10% dari alltrain, dipisah per grup rekaman.** Proposal tidak
   menyebut ukuran validasi internal. Default `split.internal_val.fraction = 0.10` dengan seed 42, diambil per
   sensor (komposisi sensor tetap). Grup (`src/data/create_split.py::scene_group_id`): satu lokasi SUN3D
   (`xtion/sun3ddata/<lokasi>`), satu sesi rekaman ber-timestamp (`kv2/kinect2data`, `kv2/align_kv2`,
@@ -153,12 +162,13 @@ Evaluasi jarak (MAE/RMSE/MAPE) dan akurasi navigasi (test / skenario indoor) →
 
 ### Kalibrasi depth
 
-- **C-1 Kalibrasi log-affine di-fit pada validasi internal (revisi sesi ini).** Prompt 10 mensyaratkan parameter
-  kalibrasi dari data validasi, bukan test. (a, b) di-fit dengan kuadrat terkecil bentuk tertutup pada piksel
-  valid split `val` (maks. 1.000 citra, 20.000 piksel per citra, seed 42), ditulis ke `cal_a`/`cal_b` checkpoint,
+- **C-1 Kalibrasi log-affine di-fit pada split `val`.** Prompt 10 mensyaratkan parameter kalibrasi dari data
+  validasi. Pada mode proposal (S-0) `val` = 5.050 data alltest, yang juga dipakai untuk melaporkan metrik depth;
+  ini termasuk keterbatasan S-0 dan harus ditulis di BAB 3. (a, b) di-fit dengan kuadrat terkecil bentuk tertutup
+  pada piksel valid (maks. 1.000 citra acak ber-seed, 20.000 piksel per citra), ditulis ke `cal_a`/`cal_b` checkpoint,
   dan dicatat di `calibration_{best,last}.json`. `calibration.split: test` ditolak dengan error. Kalibrasi
-  otomatis Ultralytics (hanya skala) diganti karena proposal Pers. 2.4 memakai dua parameter (a dan b). Hasil test
-  dengan demikian tidak memuat scale alignment tersembunyi. *Versi sebelumnya memakai split train.*
+  otomatis Ultralytics (hanya skala) diganti karena proposal Pers. 2.4 memakai dua parameter (a dan b). Parameter
+  kalibrasi dilaporkan di hasil evaluasi (`cal_a`, `cal_b`), sehingga tidak ada scale alignment tersembunyi.
 - **C-2** Bila slope `a ≤ 0` (model degeneratif), dipakai fallback scale-only `a = 1` dan kejadiannya dicatat
   (`mode`).
 
@@ -197,8 +207,8 @@ Evaluasi jarak (MAE/RMSE/MAPE) dan akurasi navigasi (test / skenario indoor) →
   "YOLO26n dan YOLO26n-Depth hasil KD"). Model terbaik keseluruhan (yang bisa saja teacher atau baseline) tetap
   dilaporkan. Opsi `integration_pool: all` mengizinkan model non-KD.
 
-- **M-4 Seleksi hanya pada split validasi.** Hasil evaluasi menyimpan kolom `split`. `model_selection` menolak
-  hasil split `test` kecuali `allow_test_split: true` (hanya untuk analisis yang didokumentasikan). Student KD
+- **M-4 Seleksi pada split `val`.** Hasil evaluasi menyimpan kolom `split`. `model_selection` menolak hasil
+  split `test` (hanya ada pada mode internal) kecuali `allow_test_split: true`. Student KD
   untuk integrasi ditentukan dari experiment ID (DET-03…06, DEP-03…09), bukan dari nama tampilan.
 - **M-5 Sensitivitas EWM terhadap derau FPS.** Smoke test menunjukkan bahwa bila kolom akurasi hampir identik,
   bobot EWM hampir seluruhnya jatuh pada FPS (kolom dengan variasi terbesar, termasuk variasi pengukuran). Untuk
@@ -209,8 +219,9 @@ Evaluasi jarak (MAE/RMSE/MAPE) dan akurasi navigasi (test / skenario indoor) →
 
 - **I-1 Koreksi Pers. 3.17.** Proposal menulis `y2' = y1 − 0,2h`. Yang diimplementasikan adalah `y2 − 0,2h`
   (60% bagian tengah, sesuai teks).
-- **I-5 Evaluasi jarak dan navigasi pada official test.** `configs/evaluation/{distance,navigation}.yaml`
-  memakai `split: test` karena keduanya adalah evaluasi akhir sistem terintegrasi dengan model yang sudah dipilih.
+- **I-5 Evaluasi jarak dan navigasi.** Pada SUN RGB-D: `configs/evaluation/{distance,navigation}.yaml` memakai
+  `split: val` (5.050 data, mode proposal). Uji utama RM 3–4: data indoor yang diambil sendiri dengan jarak terukur
+  dan arah sebenarnya (`gt_source: measured` / `scenarios`), yang independen dari seluruh proses training/seleksi.
 - **I-2** Depth map dipakai pada resolusi keluaran model (¼ dari 640 × 640, hasil stretch). Box diselaraskan
   dengan Pers. 3.11–3.12, dan ukuran ROI minimum 4 piksel diterapkan pada grid depth. Opsi
   `depth.resolution: image` meng-upsample depth ke resolusi citra.
@@ -237,7 +248,7 @@ Evaluasi jarak (MAE/RMSE/MAPE) dan akurasi navigasi (test / skenario indoor) →
   Teacher dan student memakai kebijakan yang sama.
 - **H-3** Augmentasi ditulis eksplisit di `_common.yaml` dan identik untuk semua eksperimen dalam satu tugas.
   Deteksi: default Ultralytics (HSV, flip horizontal, translate 0,1, scale 0,5, mosaic dengan `close_mosaic = 10`).
-  Validasi dan test tidak memakai augmentasi (validator Ultralytics).
+  Split validasi (dan test pada mode internal) tidak memakai augmentasi (validator Ultralytics).
 - **H-5 ⚠ perlu konfirmasi: augmentasi geometris depth dibatasi (revisi sesi ini).** `RandomPerspective`
   Ultralytics me-warp depth secara spasial tetapi mempertahankan nilai meter (`augment.py::apply_depth`). Zoom
   (`scale`) memperbesar objek, yang secara geometri kamera setara dengan objek lebih dekat, tanpa mengubah label

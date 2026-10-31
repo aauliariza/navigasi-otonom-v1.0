@@ -42,7 +42,7 @@ train:
 # Log-affine calibration D_metric = exp(a log D_pred + b) setelah training (Sub-bab 3.2.4.3)
 calibration:
   enabled: true
-  split: val          # (a, b) di-fit pada validasi internal (dari alltrain); test TIDAK pernah dipakai
+  split: val          # (a, b) di-fit pada split val (mode proposal: alltest 5.050); split test ditolak
   max_images: 1000
 
 kd:

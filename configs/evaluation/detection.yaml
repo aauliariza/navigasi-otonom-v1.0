@@ -1,6 +1,6 @@
 # Evaluasi seluruh konfigurasi deteksi objek (prompt bagian 9; proposal Sub-bab 3.2.5.1)
-# split: val  -> validasi internal (dipakai EWM-SAW, prompt 11.3)
-# split: test -> official test 5.050 (evaluasi akhir, setelah konfigurasi dipilih)
+# split: val  -> mode proposal: alltest 5.050 (seleksi EWM-SAW sekaligus pelaporan)
+#               mode internal: validasi internal (seleksi); split: test -> official test (evaluasi akhir)
 data_yaml: datasets/sunrgbd_yolo/sunrgbd_detect.yaml
 split: val
 imgsz: 640

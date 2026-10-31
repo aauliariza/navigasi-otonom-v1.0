@@ -1,5 +1,6 @@
 # Evaluasi seluruh konfigurasi monocular depth estimation (prompt bagian 10; proposal Sub-bab 3.2.5.2)
-# split: val  -> validasi internal (dipakai EWM-SAW); split: test -> official test (evaluasi akhir)
+# split: val  -> mode proposal: alltest 5.050 (seleksi + pelaporan); mode internal: validasi internal
+# split: test -> hanya ada pada mode internal (official test, evaluasi akhir)
 data_yaml: datasets/sunrgbd_yolo/sunrgbd_depth.yaml
 split: val
 imgsz: 640
