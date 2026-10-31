@@ -1,4 +1,6 @@
-# Evaluasi seluruh konfigurasi deteksi objek pada split validation SUN RGB-D (Sub-bab 3.2.5.1)
+# Evaluasi seluruh konfigurasi deteksi objek (prompt bagian 9; proposal Sub-bab 3.2.5.1)
+# split: val  -> validasi internal (dipakai EWM-SAW, prompt 11.3)
+# split: test -> official test 5.050 (evaluasi akhir, setelah konfigurasi dipilih)
 data_yaml: datasets/sunrgbd_yolo/sunrgbd_detect.yaml
 split: val
 imgsz: 640
@@ -7,19 +9,20 @@ device: 0                 # 0 = GPU pertama; "cpu" untuk CPU
 val_conf: 0.001           # ambang confidence untuk kurva PR / mAP (standar Ultralytics)
 operating_point:          # P/R/F1 utama: deteksi yang dipakai saat inferensi (Sub-bab 3.2.4.1)
   conf: 0.25
-  iou_nms: 0.45
+  iou_nms: 0.45           # NMS IoU proposal; berlaku pada head one-to-many (end2end: false)
+  end2end: false          # false = one-to-many + NMS (default Ultralytics .pt); true = one-to-one NMS-free (keputusan D-6)
   max_det: 100
   match_iou: 0.5          # TP/FP/FN pada IoU 0,5 (Sub-bab 3.2.5.1)
 benchmark: {warmup: 50, iters: 300, half: false}
-output_dir: outputs/evaluation/detection
-# Alternatif EWM-SAW: enam konfigurasi eksperimen bagian 5.1
+output_dir: outputs/evaluation/detection/{split}
+# Alternatif EWM-SAW: DET-01 ... DET-06 (prompt 5.1)
 models:
-  - {name: YOLO26x,               config: configs/detection/teacher_x.yaml}
-  - {name: YOLO26n,               config: configs/detection/baseline.yaml}
-  - {name: YOLO26n+FeatureKD,     config: configs/detection/feature_kd.yaml}
-  - {name: YOLO26n+PredictionKD,  config: configs/detection/prediction_kd.yaml}
-  - {name: YOLO26n+KD(CA-teacher),       config: configs/detection/ca_kd.yaml}
-  - {name: YOLO26n+Feat+PredKD(CA-teacher), config: configs/detection/ca_full_kd.yaml}
-# Teacher CA dievaluasi sebagai informasi tambahan (bukan alternatif EWM-SAW)
+  - {name: "DET-01 YOLO26x",                      config: configs/detection/teacher_x.yaml}
+  - {name: "DET-02 YOLO26n",                      config: configs/detection/baseline.yaml}
+  - {name: "DET-03 YOLO26n FeatureKD",            config: configs/detection/feature_kd.yaml}
+  - {name: "DET-04 YOLO26n PredictionKD",         config: configs/detection/prediction_kd.yaml}
+  - {name: "DET-05 YOLO26n PredKD (CA-teacher)",  config: configs/detection/ca_kd.yaml}
+  - {name: "DET-06 YOLO26n Feat+PredKD (CA-teacher)", config: configs/detection/ca_full_kd.yaml}
+# Teacher CA dievaluasi sebagai informasi tambahan (perubahan parameter/FLOPs teacher), bukan alternatif EWM-SAW
 extra_models:
-  - {name: YOLO26x+CA,            config: configs/detection/teacher_x_ca.yaml}
+  - {name: "TEACHER-CA YOLO26x+CA",              config: configs/detection/teacher_x_ca.yaml}

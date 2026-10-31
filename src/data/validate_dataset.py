@@ -6,7 +6,9 @@ Checks performed on ``datasets/sunrgbd_yolo``:
 * RGB and depth resolution identical for every pair; depth is uint16 single-channel and decodes to metres;
 * no NaN/Inf, valid-depth ratio per image, depth values inside 0.001-10 m;
 * YOLO labels: 5 columns, class 0, normalised coordinates in [0, 1], boxes inside the image, sides >= 4 px;
-* no sample identity shared by train and val; split sizes equal to the official 5,285 / 5,050.
+* no sample identity shared by any two of train / val / test, no recording group (``meta/manifest.csv``
+  ``group`` column) shared by train and val, and split sizes equal to the official partition:
+  ``train + val = 5,285`` (official alltrain) and ``test = 5,050`` (official alltest).
 
 Outputs (``outputs/dataset``): ``integrity_report.json`` (with ``passed``), ``integrity_issues.csv``,
 ``objects_per_image.csv``, ``objects_per_image.png`` and annotated RGB|depth sample panels. Training scripts
@@ -31,6 +33,7 @@ from src.utils.visualization import colorize_depth, draw_boxes, side_by_side
 
 LOG = get_logger("validate_dataset")
 IMG_EXT = {".jpg", ".jpeg", ".png"}
+SPLITS = ("train", "val", "test")
 
 
 def _stems(folder: Path, exts: set[str]) -> dict[str, Path]:
@@ -53,7 +56,7 @@ def validate(cfg: dict) -> dict:
         issues.append({"split": split, "sample_id": sid, "type": kind, "detail": msg})
 
     ids_by_split = {}
-    for split in ("train", "val"):
+    for split in SPLITS:
         imgs = _stems(root / "images" / split, IMG_EXT)
         deps = _stems(root / "depth" / split, {".png"})
         labs = _stems(root / "labels" / split, {".txt"})
@@ -138,11 +141,38 @@ def validate(cfg: dict) -> dict:
             "expected_pairs": expected.get(split),
         }
 
-    leak = ids_by_split["train"] & ids_by_split["val"]
-    for sid in sorted(leak):
-        issue("train+val", sid, "leakage", "sample present in both splits")
+    for a, b in (("train", "val"), ("train", "test"), ("val", "test")):
+        for sid in sorted(ids_by_split[a] & ids_by_split[b]):
+            issue(f"{a}+{b}", sid, "leakage", "sample present in both splits")
+    manifest = root / "meta" / "manifest.csv"
+    group_leaks: list[str] = []
+    if manifest.is_file():
+        from src.utils.io import load_csv
 
-    count_ok = all(expected.get(s) is None or summary[s]["valid_pairs"] == expected[s] for s in summary)
+        rows = load_csv(manifest)
+        if rows and "group" in rows[0]:
+            tg = {r["group"] for r in rows if r["split"] == "train"}
+            vg = {r["group"] for r in rows if r["split"] == "val"}
+            group_leaks = sorted(tg & vg)
+            for g in group_leaks:
+                issue("train+val", g, "group_leakage", "recording group present in train and internal val")
+    else:
+        issue("all", "-", "manifest", f"{manifest} missing: group leakage cannot be checked")
+
+    def n(s):
+        return summary[s]["valid_pairs"]
+
+    checks = []
+    if expected.get("train_official") is not None:
+        checks.append(n("train") + n("val") == expected["train_official"])
+    if expected.get("test") is not None:
+        checks.append(n("test") == expected["test"])
+    for s in SPLITS:  # optional per-split expectations
+        if expected.get(s) is not None and s != "test":
+            checks.append(n(s) == expected[s])
+    if n("val") == 0:
+        issue("val", "-", "split", "internal validation split is empty")
+    count_ok = all(checks)
     strict = cfg["split"].get("strict_counts", True)
     passed = not issues and (count_ok or not strict)
 
@@ -152,6 +182,7 @@ def validate(cfg: dict) -> dict:
         "passed": bool(passed),
         "strict_counts": strict,
         "split_counts_match_official": bool(count_ok),
+        "group_leakage_train_val": len(group_leaks),
         "summary": summary,
         "total_valid_pairs": sum(s["valid_pairs"] for s in summary.values()),
         "total_bounding_boxes": sum(s["bounding_boxes"] for s in summary.values()),
@@ -177,7 +208,7 @@ def _plot_distribution(per_image: list[dict], path: Path) -> None:
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots(figsize=(7, 4), tight_layout=True)
-    for split in ("train", "val"):
+    for split in SPLITS:
         n = [r["num_objects"] for r in per_image if r["split"] == split]
         if n:
             ax.hist(n, bins=range(0, max(n) + 2), alpha=0.6, label=split)
@@ -192,7 +223,7 @@ def _save_samples(root: Path, cfg: dict, out_dir: Path) -> None:
     """Write RGB+boxes | depth colormap panels for a deterministic subset of samples."""
     n = int(cfg["validation"].get("num_visual_samples", 12))
     out_dir.mkdir(parents=True, exist_ok=True)
-    for split in ("train", "val"):
+    for split in SPLITS:
         imgs = sorted((root / "images" / split).glob("*"))
         if not imgs:
             continue

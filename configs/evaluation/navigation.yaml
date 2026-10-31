@@ -1,10 +1,10 @@
 # Evaluasi ketepatan keputusan arah gerak (Sub-bab 3.2.5.4)
 system_config: configs/system/inference.yaml
-# scenarios: skenario pengujian indoor dengan arah sebenarnya dicatat peneliti (CSV, lihat docs/EXPERIMENTS.md)
+# scenarios: skenario pengujian indoor dengan arah sebenarnya dicatat peneliti (CSV, lihat docs/EXPERIMENT_MATRIX.md)
 # sunrgbd  : arah referensi diturunkan dari box ground truth + jarak dari depth ground truth dengan aturan yang sama
 gt_source: scenarios
 scenarios_csv: data_collection/navigation_scenarios.csv
 data_yaml: datasets/sunrgbd_yolo/sunrgbd_depth.yaml
-split: val
+split: test                # evaluasi akhir sistem terintegrasi pada official test
 max_images: null
-output_dir: outputs/evaluation/navigation
+output_dir: outputs/integration/navigation_evaluation

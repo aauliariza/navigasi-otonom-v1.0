@@ -2,16 +2,21 @@
 
 Reads the decision matrix produced by src/evaluation/evaluate_{detection,depth}.py (only rows with
 ``role == alternative``), applies EWM (src/optimization/entropy_weight.py) and SAW
-(src/optimization/simple_additive_weighting.py) and writes, per task, under ``output_dir``:
+(src/optimization/simple_additive_weighting.py) and writes, per task (``<task>`` = detection | depth):
 
-* ``decision_matrix.csv``  raw criterion values
-* ``ewm_weights.csv``      p-entropy-diversification-weight per criterion (+ ``ewm_proportions.csv``)
-* ``normalized_matrix.csv`` SAW r_ij
-* ``saw_ranking.csv``      weighted contributions w_j r_ij, V_i and rank
-* ``selection_report.json`` everything above + selected model and the selected KD student for integration
-* ``selection_report.md``  human-readable summary
+* ``<output_dir>/<task>_ewm/decision_matrix.csv``  raw criterion values
+* ``<output_dir>/<task>_ewm/ewm_proportions.csv``  p_ij (Eq. 3.29)
+* ``<output_dir>/<task>_ewm/ewm_weights.csv``      entropy, diversification, weight per criterion
+* ``<output_dir>/<task>_saw/normalized_matrix.csv`` SAW r_ij (Eq. 3.27-3.28)
+* ``<output_dir>/<task>_saw/saw_scores.csv``       weighted contributions w_j r_ij and V_i (Eq. 3.33)
+* ``<output_dir>/<task>_saw/ranking.csv``          rank of every configuration
+* ``<output_dir>/<task>_saw/ranking.png``          bar chart of V_i
+* ``<output_dir>/<task>_saw/selection_report.{json,md}`` everything above + best model / selected KD student
 
-Finally ``outputs/model_selection/selected_models.json`` names the checkpoints used by the integrated system.
+Only results of the VALIDATION split are accepted (``split`` column written by the evaluation scripts); results
+of the official test split are refused unless ``allow_test_split: true`` (test data must not drive selection).
+Finally ``selected_models_path`` (default ``outputs/selection/selected_models.json``) names the checkpoints used
+by the integrated system.
 
 Usage::
 
@@ -34,6 +39,15 @@ from src.utils.logger import get_logger
 
 LOG = get_logger("model_selection")
 TEACHER_PATTERN = re.compile(r"^YOLO26x", re.IGNORECASE)
+KD_STUDENT_ID = re.compile(r"^(DET-0[3-6]|DEP-0[3-9])$")  # experiment IDs of the KD students (prompt 5.1 / 6.1)
+
+
+def is_kd_student(row: dict) -> bool:
+    """KD student by experiment ID (preferred) or, for legacy rows without an ID, by display name."""
+    eid = row.get("experiment_id") or ""
+    if eid:
+        return bool(KD_STUDENT_ID.match(eid))
+    return not TEACHER_PATTERN.match(row["model"]) and "KD" in row["model"]
 
 
 def build_matrix(rows: list[dict], criteria: list[dict], memory_column: str, missing_policy: str):
@@ -55,6 +69,10 @@ def build_matrix(rows: list[dict], criteria: list[dict], memory_column: str, mis
 def select(task: str, cfg: dict, global_cfg: dict) -> dict:
     """Run EWM + SAW for one task and write its reports."""
     rows = [r for r in load_csv(resolve_path(cfg["results"])) if r.get("role", "alternative") == "alternative"]
+    splits = {r.get("split", "") for r in rows}
+    if "test" in splits and not global_cfg.get("allow_test_split", False):
+        raise ValueError(f"{task}: {cfg['results']} contains results of the TEST split. Model selection must use the "
+                         "validation split (evaluate with split=val). Set allow_test_split=true only for a documented analysis.")
     if len(rows) < 2:
         raise ValueError(f"{task}: need at least two evaluated alternatives, found {len(rows)}")
     names, X, crit, dropped = build_matrix(rows, cfg["criteria"], global_cfg["memory_column"], global_cfg["missing_policy"])
@@ -65,18 +83,22 @@ def select(task: str, cfg: dict, global_cfg: dict) -> dict:
     V = saw_scores(R, w)
     ranks = rank(V)
     cols = [c["column"] for c in crit]
-    out = resolve_path(cfg["output_dir"])
-    save_csv([{"model": n, **dict(zip(cols, x))} for n, x in zip(names, X)], out / "decision_matrix.csv")
-    save_csv([{"model": n, **dict(zip(cols, p))} for n, p in zip(names, ewm["p"])], out / "ewm_proportions.csv")
+    base = resolve_path(cfg["output_dir"])
+    ewm_dir, out = base / f"{task}_ewm", base / f"{task}_saw"
+    save_csv([{"model": n, **dict(zip(cols, x))} for n, x in zip(names, X)], ewm_dir / "decision_matrix.csv")
+    save_csv([{"model": n, **dict(zip(cols, p))} for n, p in zip(names, ewm["p"])], ewm_dir / "ewm_proportions.csv")
     save_csv([{"criterion": c["column"], "type": c["type"], "entropy": e, "diversification": d, "weight": wj}
-              for c, e, d, wj in zip(crit, ewm["entropy"], ewm["diversification"], w)], out / "ewm_weights.csv")
+              for c, e, d, wj in zip(crit, ewm["entropy"], ewm["diversification"], w)], ewm_dir / "ewm_weights.csv")
     save_csv([{"model": n, **dict(zip(cols, r))} for n, r in zip(names, R)], out / "normalized_matrix.csv")
     ranking = [{"model": n, **{f"w*r[{c}]": v for c, v in zip(cols, r * w)}, "saw_score": s, "rank": int(k)}
                for n, r, s, k in zip(names, R, V, ranks)]
-    save_csv(sorted(ranking, key=lambda x: x["rank"]), out / "saw_ranking.csv")
+    ranking = sorted(ranking, key=lambda x: x["rank"])
+    save_csv(ranking, out / "saw_scores.csv")
+    save_csv([{"rank": r["rank"], "model": r["model"], "saw_score": r["saw_score"]} for r in ranking], out / "ranking.csv")
+    plot_ranking(ranking, task, out / "ranking.png")
 
     best = names[int(np.argmax(V))]
-    pool = [i for i, n in enumerate(names) if not TEACHER_PATTERN.match(n) and "KD" in n] if global_cfg.get("integration_pool") == "kd_students" else list(range(len(names)))
+    pool = [i for i, r in enumerate(rows) if is_kd_student(r)] if global_cfg.get("integration_pool") == "kd_students" else list(range(len(names)))
     if not pool:
         raise ValueError(f"{task}: no KD student among alternatives for integration")
     student = names[max(pool, key=lambda i: V[i])]
@@ -88,6 +110,29 @@ def select(task: str, cfg: dict, global_cfg: dict) -> dict:
     _markdown(report, cols, X, R, w, out / "selection_report.md")
     LOG.info("%s: best=%s | KD student for integration=%s", task, best, student)
     return report
+
+
+def plot_ranking(ranking: list[dict], task: str, path: Path) -> None:
+    """Horizontal bar chart of SAW scores (best at the top)."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    names = [r["model"] for r in ranking][::-1]
+    vals = [float(r["saw_score"]) for r in ranking][::-1]
+    fig, ax = plt.subplots(figsize=(7, 0.45 * len(names) + 1.2), tight_layout=True)
+    bars = ax.barh(names, vals, color=["#2a6fdb" if i == len(names) - 1 else "#9bb7e3" for i in range(len(names))])
+    for b, v in zip(bars, vals):
+        ax.text(b.get_width(), b.get_y() + b.get_height() / 2, f" {v:.4f}", va="center", fontsize=8)
+    ax.set_xlabel("Nilai SAW (V_i)")
+    ax.set_title(f"Ranking EWM-SAW: {task}")
+    ax.set_xlim(0, max(vals) * 1.15 if vals and max(vals) > 0 else 1)
+    for sp in ("top", "right"):
+        ax.spines[sp].set_visible(False)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
 
 
 def _markdown(rep: dict, cols, X, R, w, path: Path) -> None:
@@ -118,7 +163,7 @@ def main(argv: list[str] | None = None) -> int:
     reports = {t: select(t, cfg[t], cfg) for t in (["detection", "depth"] if args.task == "both" else [args.task])}
     if len(reports) == 2:
         sel = {t: {"model": r["selected_kd_student"], "weights": r["selected_kd_student_weights"]} for t, r in reports.items()}
-        path = resolve_path(cfg.get("selected_models_path", "outputs/model_selection/selected_models.json"))
+        path = resolve_path(cfg.get("selected_models_path", "outputs/selection/selected_models.json"))
         save_json(sel, path)
         LOG.info("Selected models for integration written to %s", path)
     return 0

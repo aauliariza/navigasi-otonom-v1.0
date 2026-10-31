@@ -1,7 +1,8 @@
 """Train a YOLO26-Depth model WITHOUT KD: YOLO26x-Depth teacher, YOLO26x-Depth+CBAM teacher, YOLO26n-Depth baseline.
 
-After training, the Ultralytics automatic (validation-split, scale-only) calibration is replaced by the
-log-affine calibration of models/depth/yolo26_depth.py fitted on ``calibration.split`` (default: train), which
+After training, the Ultralytics automatic (scale-only) calibration is replaced by the two-parameter
+log-affine calibration of models/depth/yolo26_depth.py fitted on ``calibration.split`` (default: ``val``, the
+internal validation split carved out of the official alltrain; the official test split is refused), which
 is written into ``weights/best.pt`` and ``weights/last.pt`` and recorded in ``calibration.json``.
 
 Usage::
@@ -34,13 +35,15 @@ def calibrate_experiment(cfg: dict, weights: list[Path], device) -> dict | None:
     if not cal.get("enabled", True):
         LOG.warning("Log-affine calibration disabled by config; checkpoints keep identity calibration.")
         return None
+    if str(cal.get("split", "val")) == "test":
+        raise ValueError("calibration.split=test is not allowed: calibration parameters must come from validation data")
     data = load_json_yaml(resolve_path(cfg["data"]["yaml"]))
     root = Path(data["path"])
     record = None
     for w in weights:
         if w.is_file():
             r = calibrate_checkpoint(
-                w, root, cal.get("split", "train"), int(cfg["train"]["imgsz"]), float(data.get("min_depth", 0.001)),
+                w, root, cal.get("split", "val"), int(cfg["train"]["imgsz"]), float(data.get("min_depth", 0.001)),
                 float(data.get("max_depth", 10.0)), int(cal.get("max_images", 1000)), device=device,
                 seed=int(cfg["train"].get("seed", 42)),
                 report_path=experiment_dir(cfg) / f"calibration_{w.stem}.json",

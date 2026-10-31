@@ -1,6 +1,6 @@
 _base_: _common.yaml
 experiment:
-  id: dep_00_yolo26x_depth_cbam_teacher
+  id: TEACHER-CBAM
   description: "Teacher pendukung eksperimen 5.2-8/9: YOLO26x-Depth + CBAM pada P3/P4/P5 (layer 23-25), tanpa KD"
 model:
   arch: yolo26x-depth.yaml

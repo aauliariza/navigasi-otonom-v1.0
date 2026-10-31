@@ -1,7 +1,7 @@
 _base_: _common.yaml
 experiment:
-  id: dep_05_yolo26n_depth_boundary_kd
-  description: "Eksperimen 5.2-5: Boundary Distillation gradient magnitude (Eq. 2.11-2.12)"
+  id: DEP-05
+  description: "DEP-05: Boundary Distillation gradient magnitude (Eq. 2.11-2.12)"
 model:
   arch: yolo26n-depth.yaml
   weights: yolo26n-depth.pt

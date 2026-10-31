@@ -12,7 +12,7 @@ The same decode is used by the official SUNRGBDtoolbox (``read3dPoints.m``) and 
 Valid range (proposal Sub-bab 3.2.4.3): 0.001 <= D <= 10 m. Pixels outside the range, zero or non-finite
 are invalid. By default out-of-range pixels are *invalidated* (set to 0, the invalid marker) instead of
 being clipped to 10 m, because clipping would manufacture fake 10 m ground truth that then counts as
-"valid" in the loss and in evaluation (see docs/METHODOLOGY.md, keputusan D-3).
+"valid" in the loss and in evaluation (see docs/EXPERIMENT_DESIGN_DECISIONS.md, keputusan D-3).
 """
 
 from __future__ import annotations

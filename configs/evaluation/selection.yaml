@@ -3,8 +3,8 @@ ewm_basis: raw                 # raw (Eq. 3.29 pada x_ij) | normalized (analisis
 memory_column: gpu_memory_gb   # puncak memori GPU saat inferensi (benchmark model-only)
 missing_policy: drop_criterion # drop_criterion | error  (mis. memori GPU tidak tersedia pada CPU)
 detection:
-  results: outputs/evaluation/detection/detection_results.csv
-  output_dir: outputs/model_selection/detection
+  results: outputs/evaluation/detection/val/detection_results.csv
+  output_dir: outputs/selection   # -> detection_ewm/ dan detection_saw/
   criteria:
     - {column: mAP50,         type: benefit}
     - {column: mAP50-95,      type: benefit}
@@ -16,8 +16,8 @@ detection:
     - {column: gflops,        type: cost}
     - {column: gpu_memory_gb, type: cost}
 depth:
-  results: outputs/evaluation/depth/depth_results.csv
-  output_dir: outputs/model_selection/depth
+  results: outputs/evaluation/depth/val/depth_results.csv
+  output_dir: outputs/selection   # -> depth_ewm/ dan depth_saw/
   criteria:
     - {column: delta1,        type: benefit}
     - {column: delta2,        type: benefit}
@@ -33,3 +33,6 @@ depth:
 # Model student yang dipakai pada integrasi: alternatif berperingkat tertinggi di antara student KD
 # (Sub-bab 3.2.5.3 memakai "YOLO26n dan YOLO26n-Depth hasil Knowledge Distillation").
 integration_pool: kd_students  # kd_students | all
+# Seleksi hanya boleh memakai hasil split validasi; hasil split test ditolak kecuali allow_test_split=true.
+allow_test_split: false
+selected_models_path: outputs/selection/selected_models.json

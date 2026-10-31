@@ -47,7 +47,7 @@ def test_detection_training_kd_and_resume(env):
     tmp = env["tmp"]
     assert train_detection.main(["--config", "configs/detection/teacher_x_ca.yaml", "--set", *env["det"], "model.arch=yolo26n.yaml"]) == 0
     assert train_detection.main(["--config", "configs/detection/baseline.yaml", "--set", *env["det"]]) == 0
-    teacher = _best(tmp, "detection", "det_00_yolo26x_ca_teacher")
+    teacher = _best(tmp, "detection", "TEACHER-CA")
     kd_set = [*env["det"], f"kd.teacher_weights={teacher}", "train.epochs=2"]
 
     # interrupt after the first epoch's checkpoint, then resume
@@ -92,14 +92,14 @@ def test_depth_training_kd_and_calibration(env):
     tmp = env["tmp"]
     assert train_depth.main(["--config", "configs/depth/teacher_x_cbam.yaml", "--set", *env["dep"], "model.arch=yolo26n-depth.yaml"]) == 0
     assert train_depth.main(["--config", "configs/depth/baseline.yaml", "--set", *env["dep"]]) == 0
-    teacher = _best(tmp, "depth", "dep_00_yolo26x_depth_cbam_teacher")
+    teacher = _best(tmp, "depth", "TEACHER-CBAM")
     assert train_depth_kd.main(["--config", "configs/depth/cbam_full_kd.yaml", "--set", *env["dep"], f"kd.teacher_weights={teacher}"]) == 0
-    ck = load_ultralytics_ckpt(_best(tmp, "depth", "dep_09_yolo26n_depth_cbam_full_kd"))
+    ck = load_ultralytics_ckpt(_best(tmp, "depth", "DEP-09"))
     cal = ck["log_affine_calibration"]
-    assert cal["split"] == "train" and math.isfinite(cal["a"]) and cal["a"] > 0
+    assert cal["split"] == "val" and math.isfinite(cal["a"]) and cal["a"] > 0
     head = ck["model"].model[-1]
     assert head.cal_a.item() == pytest.approx(cal["a"]) and head.cal_b.item() == pytest.approx(cal["b"])
-    header = (tmp / "runs/depth/dep_09_yolo26n_depth_cbam_full_kd/results.csv").read_text().splitlines()[0]
+    header = (tmp / "runs/depth/DEP-09/results.csv").read_text().splitlines()[0]
     for c in ("kd_output", "kd_feature", "kd_boundary", "kd_relative"):
         assert f"train/{c}" in header
 
@@ -126,9 +126,24 @@ def test_evaluation_selection_integration(env):
     assert "KD" in sel["detection"]["model"] and "KD" in sel["depth"]["model"]
 
     sys_ov = [f"models.selected_models={tmp / 'sel/selected.json'}", f"output_dir={tmp / 'system'}", "detection.imgsz=96", "depth.imgsz=96", "detection.conf=0.001"]
-    assert run_system(["--source", str(tmp / "data/images/val"), "--set", *sys_ov]) == 0
+    assert run_system(["--source", str(tmp / "data/images/test"), "--set", *sys_ov]) == 0
     dec = load_csv(tmp / "system/decisions.csv")
     assert len(dec) == 3 and all(d["direction"] in {"FORWARD", "TURN_LEFT", "TURN_RIGHT", "STOP"} for d in dec)
+    # image and video front-ends with the real selected checkpoints
+    import cv2
+
+    from src.inference import predict_image, predict_video
+
+    assert predict_image.main(["--source", str(tmp / "data/images/test"), "--output", str(tmp / "inf/img"), "--set", *sys_ov]) == 0
+    assert len(load_csv(tmp / "inf/img/decisions.csv")) == 3
+    frames = [cv2.imread(str(p)) for p in sorted((tmp / "data/images/test").glob("*.jpg"))]
+    vw = cv2.VideoWriter(str(tmp / "clip.avi"), cv2.VideoWriter_fourcc(*"MJPG"), 5.0, (frames[0].shape[1], frames[0].shape[0]))
+    for f in frames * 2:
+        vw.write(f)
+    vw.release()
+    assert predict_video.main(["--source", str(tmp / "clip.avi"), "--output", str(tmp / "inf/vid"), "--set", *sys_ov]) == 0
+    assert load_json(tmp / "inf/vid/clip_summary.json")["frames_processed"] == 6
+
     so = "system_overrides=[" + ",".join(sys_ov) + "]"
     assert evaluate_distance.main(["--set", so, f"data_yaml={tmp / 'data/depth.yaml'}", f"output_dir={tmp / 'eval/dist'}"]) == 0
     s = load_json(tmp / "eval/dist/distance_summary.json")

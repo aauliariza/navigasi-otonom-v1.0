@@ -1,7 +1,7 @@
 _base_: _common.yaml
 experiment:
-  id: dep_08_yolo26n_depth_cbam_teacher_kd
-  description: "Eksperimen 5.2-8: YOLO26x-Depth+CBAM -> YOLO26n-Depth dengan Depth Output Distillation (satu-satunya beda terhadap 5.2-3 adalah teacher ber-CBAM)"
+  id: DEP-08
+  description: "DEP-08: YOLO26x-Depth+CBAM -> YOLO26n-Depth dengan Depth Output Distillation (satu-satunya beda terhadap 5.2-3 adalah teacher ber-CBAM)"
 model:
   arch: yolo26n-depth.yaml
   weights: yolo26n-depth.pt

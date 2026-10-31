@@ -1,7 +1,7 @@
 # Konfigurasi sistem terintegrasi (Sub-bab 3.2.4.5 - 3.2.4.7)
 models:
-  # Default: checkpoint student KD hasil EWM-SAW (outputs/model_selection/selected_models.json).
-  selected_models: outputs/model_selection/selected_models.json
+  # Default: checkpoint student KD hasil EWM-SAW (outputs/selection/selected_models.json).
+  selected_models: outputs/selection/selected_models.json
   detection_weights: null       # isi path .pt untuk mengganti pilihan EWM-SAW secara eksplisit
   depth_weights: null
 device: cpu                     # "cpu" atau "0" (GPU pertama)
@@ -11,6 +11,7 @@ detection:                      # Sub-bab 3.2.4.1
   conf: 0.25
   iou: 0.45
   max_det: 100
+  end2end: false                # false = head one-to-many + NMS IoU 0,45 (proposal); true = head one-to-one NMS-free (iou tidak dipakai)
 
 depth:
   imgsz: 640
@@ -43,4 +44,4 @@ navigation:                     # Sub-bab 3.2.4.7
   low_confidence_blocks: true
   low_conf_threshold: 0.20
 
-output_dir: outputs/integrated_system
+output_dir: outputs/inference/images

@@ -8,12 +8,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def build_synthetic_dataset(tmp: Path, n_train: int = 6, n_val: int = 3) -> dict:
+def build_synthetic_dataset(tmp: Path, n_train: int = 6, n_test: int = 3) -> dict:
     spec = importlib.util.spec_from_file_location("mk", ROOT / "scripts" / "data" / "make_synthetic_sunrgbd.py")
     mk = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mk)
     raw = tmp / "raw"
-    mk.main(["--out", str(raw), "--train", str(n_train), "--val", str(n_val)])
+    mk.main(["--out", str(raw), "--train", str(n_train), "--test", str(n_test)])
     from src.data.prepare_sunrgbd import prepare
     from src.data.validate_dataset import validate
     from src.utils.config import apply_overrides, load_config
@@ -28,8 +28,8 @@ def build_synthetic_dataset(tmp: Path, n_train: int = 6, n_val: int = 3) -> dict
             f"output.detect_yaml={tmp / 'data/detect.yaml'}",
             f"output.depth_yaml={tmp / 'data/depth.yaml'}",
             f"output.report_dir={tmp / 'report'}",
-            f"split.expected_counts.train={n_train}",
-            f"split.expected_counts.val={n_val}",
+            f"split.expected_counts.train_official={n_train}",
+            f"split.expected_counts.test={n_test}",
         ],
     )
     prep = prepare(cfg)

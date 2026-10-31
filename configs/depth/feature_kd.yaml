@@ -1,7 +1,7 @@
 _base_: _common.yaml
 experiment:
-  id: dep_04_yolo26n_depth_feature_kd
-  description: "Eksperimen 5.2-4: Feature Distillation layer 16/19/22 (Eq. 2.10)"
+  id: DEP-04
+  description: "DEP-04: Feature Distillation layer 16/19/22 (Eq. 2.10)"
 model:
   arch: yolo26n-depth.yaml
   weights: yolo26n-depth.pt

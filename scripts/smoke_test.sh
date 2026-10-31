@@ -7,20 +7,20 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 OUT=outputs/smoke_e2e
 rm -rf "$OUT"
-python scripts/data/make_synthetic_sunrgbd.py --out $OUT/raw --train 8 --val 4
+python scripts/data/make_synthetic_sunrgbd.py --out $OUT/raw --train 10 --test 4
 python -m src.data.prepare_sunrgbd --set source.sunrgbd_root=$OUT/raw/SUNRGBD \
   source.split_file=$OUT/raw/SUNRGBDtoolbox/traintestSUNRGBD/allsplit.mat source.bbox_meta=$OUT/raw/SUNRGBDMeta2DBB_v2.mat \
   output.root=$OUT/data output.detect_yaml=$OUT/data/detect.yaml output.depth_yaml=$OUT/data/depth.yaml
 python scripts/data/validate_dataset.py --set output.root=$OUT/data output.report_dir=$OUT/dataset \
-  split.expected_counts.train=8 split.expected_counts.val=4
+  split.expected_counts.train_official=10 split.expected_counts.test=4
 C="data.integrity_report=$OUT/dataset/integrity_report.json model.weights=null train.epochs=1 train.batch=4 train.imgsz=96 train.workers=0 train.device=cpu train.amp=false train.plots=false output.root=$OUT/runs"
 D="$C data.yaml=$OUT/data/detect.yaml"
 P="$C data.yaml=$OUT/data/depth.yaml"
 python -m src.training.train_detection --config configs/detection/teacher_x.yaml    --set $D model.arch=yolo26n.yaml
 python -m src.training.train_detection --config configs/detection/teacher_x_ca.yaml --set $D model.arch=yolo26n.yaml
 python -m src.training.train_detection --config configs/detection/baseline.yaml     --set $D
-T=$OUT/runs/detection/det_01_yolo26x_teacher/weights/best.pt
-TC=$OUT/runs/detection/det_00_yolo26x_ca_teacher/weights/best.pt
+T=$OUT/runs/detection/DET-01/weights/best.pt
+TC=$OUT/runs/detection/TEACHER-CA/weights/best.pt
 python -m src.training.train_detection_kd --config configs/detection/feature_kd.yaml    --set $D kd.teacher_weights=$T
 python -m src.training.train_detection_kd --config configs/detection/prediction_kd.yaml --set $D kd.teacher_weights=$T
 python -m src.training.train_detection_kd --config configs/detection/ca_kd.yaml         --set $D kd.teacher_weights=$TC
@@ -28,8 +28,8 @@ python -m src.training.train_detection_kd --config configs/detection/ca_full_kd.
 python -m src.training.train_depth --config configs/depth/teacher_x.yaml      --set $P model.arch=yolo26n-depth.yaml
 python -m src.training.train_depth --config configs/depth/teacher_x_cbam.yaml --set $P model.arch=yolo26n-depth.yaml
 python -m src.training.train_depth --config configs/depth/baseline.yaml       --set $P
-T=$OUT/runs/depth/dep_01_yolo26x_depth_teacher/weights/best.pt
-TC=$OUT/runs/depth/dep_00_yolo26x_depth_cbam_teacher/weights/best.pt
+T=$OUT/runs/depth/DEP-01/weights/best.pt
+TC=$OUT/runs/depth/TEACHER-CBAM/weights/best.pt
 for c in output_kd feature_kd boundary_kd relative_kd full_kd; do
   python -m src.training.train_depth_kd --config configs/depth/$c.yaml --set $P kd.teacher_weights=$T
 done
@@ -37,16 +37,30 @@ for c in cbam_kd cbam_full_kd; do
   python -m src.training.train_depth_kd --config configs/depth/$c.yaml --set $P kd.teacher_weights=$TC
 done
 E="device=cpu imgsz=96 batch=4 benchmark.warmup=2 benchmark.iters=5 experiment_overrides=[output.root=$OUT/runs]"
-python -m src.evaluation.evaluate_detection --include-extra --set data_yaml=$OUT/data/detect.yaml output_dir=$OUT/eval/detection $E
-python -m src.evaluation.evaluate_depth     --include-extra --set data_yaml=$OUT/data/depth.yaml  output_dir=$OUT/eval/depth $E
-python -m src.optimization.model_selection --set detection.results=$OUT/eval/detection/detection_results.csv \
-  detection.output_dir=$OUT/selection/detection depth.results=$OUT/eval/depth/depth_results.csv \
-  depth.output_dir=$OUT/selection/depth selected_models_path=$OUT/selection/selected_models.json
+# seleksi pada validasi internal, evaluasi akhir pada official test
+for SPLIT in val test; do
+  python -m src.evaluation.evaluate_detection --include-extra --set split=$SPLIT data_yaml=$OUT/data/detect.yaml "output_dir=$OUT/eval/detection/{split}" $E
+  python -m src.evaluation.evaluate_depth     --include-extra --set split=$SPLIT data_yaml=$OUT/data/depth.yaml  "output_dir=$OUT/eval/depth/{split}" $E
+done
+python -m src.optimization.model_selection --set detection.results=$OUT/eval/detection/val/detection_results.csv \
+  detection.output_dir=$OUT/selection depth.results=$OUT/eval/depth/val/depth_results.csv \
+  depth.output_dir=$OUT/selection selected_models_path=$OUT/selection/selected_models.json
 SYS="models.selected_models=$OUT/selection/selected_models.json output_dir=$OUT/system detection.imgsz=96 depth.imgsz=96 detection.conf=0.001"
-python -m src.integration.detector_depth_fusion --source $OUT/data/images/val --set $SYS
+python -m src.inference.predict_image --source $OUT/data/images/test --output $OUT/inference/images --set $SYS
+python - "$OUT" <<'PY'
+import sys, glob, cv2
+out = sys.argv[1]
+frames = [cv2.imread(p) for p in sorted(glob.glob(f"{out}/data/images/test/*.jpg"))]
+h, w = frames[0].shape[:2]
+vw = cv2.VideoWriter(f"{out}/clip.avi", cv2.VideoWriter_fourcc(*"MJPG"), 5.0, (w, h))
+for f in frames * 3:
+    vw.write(cv2.resize(f, (w, h)))
+vw.release()
+PY
+python -m src.inference.predict_video --source $OUT/clip.avi --output $OUT/inference/videos --set $SYS
 SO="system_overrides=[${SYS// /,}]"
 python -m src.evaluation.evaluate_distance  --set "$SO" data_yaml=$OUT/data/depth.yaml output_dir=$OUT/eval/distance
 python -m src.evaluation.evaluate_navigation --set "$SO" gt_source=sunrgbd data_yaml=$OUT/data/depth.yaml output_dir=$OUT/eval/navigation
 python -m src.evaluation.benchmark --image "$(ls $OUT/data/images/val/*.jpg | head -1)" --warmup 2 --iters 5 --set $SYS
-python -m src.utils.report --root $OUT --out $OUT/RESEARCH_REPORT.md
+python -m src.utils.report --root $OUT --out $OUT/reports/experiment_summary/RESEARCH_REPORT.md
 echo "SMOKE TEST OK -> $OUT"

@@ -10,9 +10,14 @@ source:
   depth_dir: depth_bfx         # depth_bfx (refined, digunakan SUNRGBDMeta toolbox) | depth (raw sensor)
 
 split:
-  # alltrain -> train, alltest -> val (nama subset mengikuti Tabel 3.6 proposal)
-  expected_counts: {train: 5285, val: 5050}
+  # alltrain (5.285) -> train + val (validasi internal, dipisah per grup rekaman/scene)
+  # alltest  (5.050) -> test (HANYA evaluasi akhir; proposal Tabel 3.6 menyebutnya "Validation")
+  expected_counts: {train_official: 5285, test: 5050}
   strict_counts: true          # pipeline gagal bila jumlah pasangan valid != expected_counts
+  internal_val:
+    fraction: 0.10             # ~10% alltrain; TIDAK tercantum di proposal (keputusan S-2)
+    seed: 42                   # sama dengan seed training (Tabel 3.7/3.8)
+    group_overrides: null      # opsional CSV scene_id,group untuk pengelompokan scene yang lebih rinci
 
 depth:
   min_depth: 0.001             # meter (Sub-bab 3.2.4.3)
@@ -26,7 +31,7 @@ annotation:
   min_box_side: 4              # piksel (Sub-bab 3.2.3.3)
 
 output:
-  root: datasets/sunrgbd_yolo  # images/{train,val}, depth/{train,val}, labels/{train,val}, meta/
+  root: datasets/sunrgbd_yolo  # images/, depth/, labels/ masing-masing {train,val,test}; meta/ (manifest, splits.json)
   detect_yaml: datasets/sunrgbd_yolo/sunrgbd_detect.yaml
   depth_yaml: datasets/sunrgbd_yolo/sunrgbd_depth.yaml
   report_dir: outputs/dataset

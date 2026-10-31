@@ -1,7 +1,7 @@
 _base_: _common.yaml
 experiment:
-  id: det_01_yolo26x_teacher
-  description: "Eksperimen 5.1-1: YOLO26x (teacher), dilatih tanpa KD"
+  id: DET-01
+  description: "DET-01: YOLO26x (teacher), dilatih tanpa KD"
 model:
   arch: yolo26x.yaml
   weights: yolo26x.pt       # bobot pretrained resmi Ultralytics (COCO); null = dari nol

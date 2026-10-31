@@ -108,7 +108,7 @@ def benchmark_system(pipe, bgr, warmup: int = 20, iters: int = 100) -> dict:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """CLI: benchmark the integrated system on one image -> outputs/integrated_system/benchmark_system.json."""
+    """CLI: benchmark the integrated system on one image -> <output_dir>/benchmark_system.json."""
     import argparse
 
     import cv2

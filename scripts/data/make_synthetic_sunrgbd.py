@@ -8,7 +8,10 @@ The scenes are random boxes in front of a planar wall; NO result computed on the
 
 Usage::
 
-    python scripts/data/make_synthetic_sunrgbd.py --out outputs/smoke/raw --train 8 --val 4
+    python scripts/data/make_synthetic_sunrgbd.py --out outputs/smoke/raw --train 8 --test 4
+
+Half of the official-train scenes use the SUN3D sequence layout ``xtion/sun3ddata/<location>/<sequence>/<frame>``
+(two locations), so the scene-grouped internal validation split (src/data/create_split.py) is exercised.
 """
 
 from __future__ import annotations
@@ -48,7 +51,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", default="outputs/smoke/raw")
     ap.add_argument("--train", type=int, default=8)
-    ap.add_argument("--val", type=int, default=4)
+    ap.add_argument("--test", "--val", dest="test", type=int, default=4, help="number of official-test scenes")
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args(argv)
     from scipy.io import savemat
@@ -56,11 +59,14 @@ def main(argv=None) -> int:
     rng = np.random.default_rng(args.seed)
     out = Path(args.out)
     root = out / "SUNRGBD"
-    names = {"train": [], "val": []}
+    names = {"train": [], "test": []}
     meta = []
-    for split, n in (("train", args.train), ("val", args.val)):
+    for split, n in (("train", args.train), ("test", args.test)):
         for i in range(n):
-            scene_rel = f"kv1/NYUdata/SYN{split}{i:04d}"
+            if split == "train" and i % 2 == 1:
+                scene_rel = f"xtion/sun3ddata/synloc_{(i // 2) % 2}/seq_{i}/{i:07d}-000000000000"
+            else:
+                scene_rel = f"kv1/NYUdata/SYN{split}{i:04d}"
             sd = root / scene_rel
             for sub in ("image", "depth_bfx", "depth"):
                 (sd / sub).mkdir(parents=True, exist_ok=True)
@@ -77,12 +83,12 @@ def main(argv=None) -> int:
             meta.append((f"SUNRGBD/{scene_rel}", gt))
     tb = out / "SUNRGBDtoolbox" / "traintestSUNRGBD"
     tb.mkdir(parents=True, exist_ok=True)
-    savemat(str(tb / "allsplit.mat"), {"alltrain": np.array(names["train"], dtype=object), "alltest": np.array(names["val"], dtype=object)})
+    savemat(str(tb / "allsplit.mat"), {"alltrain": np.array(names["train"], dtype=object), "alltest": np.array(names["test"], dtype=object)})
     arr = np.zeros((len(meta),), dtype=[("sequenceName", "O"), ("groundtruth2DBB", "O")])
     for k, (seq, gt) in enumerate(meta):
         arr[k] = (seq, gt)
     savemat(str(out / "SUNRGBDMeta2DBB_v2.mat"), {"SUNRGBDMeta2DBB": arr})
-    print(f"Synthetic raw SUN RGB-D layout written to {out} (train={args.train}, val={args.val})")
+    print(f"Synthetic raw SUN RGB-D layout written to {out} (train={args.train}, test={args.test})")
     return 0
 
 
