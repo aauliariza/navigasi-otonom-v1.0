@@ -79,5 +79,25 @@ def test_model_selection_end_to_end(tmp_path):
     assert rep["alternatives"] == ["YOLO26x", "YOLO26n", "YOLO26n+FeatureKD"]  # extra row excluded
     assert rep["selected_overall"] == "YOLO26n+FeatureKD"
     assert rep["selected_kd_student"] == "YOLO26n+FeatureKD" and rep["selected_kd_student_weights"] == "kd.pt"
-    assert load_json(tmp_path / "out/selection_report.json")["ranks"]["YOLO26n+FeatureKD"] == 1
-    assert (tmp_path / "out/selection_report.md").is_file()
+    saw, ewm = tmp_path / "out/detection_saw", tmp_path / "out/detection_ewm"
+    assert load_json(saw / "selection_report.json")["ranks"]["YOLO26n+FeatureKD"] == 1
+    for f in ("selection_report.md", "normalized_matrix.csv", "saw_scores.csv", "ranking.csv", "ranking.png"):
+        assert (saw / f).is_file(), f
+    for f in ("decision_matrix.csv", "ewm_weights.csv", "ewm_proportions.csv"):
+        assert (ewm / f).is_file(), f
+
+
+def test_model_selection_refuses_test_split(tmp_path):
+    import pytest
+
+    from src.optimization.model_selection import select
+    from src.utils.io import save_csv
+
+    rows = [{"model": f"m{i}", "experiment_id": f"DET-0{i}", "split": "test", "role": "alternative", "mAP50": 0.5 + i / 10} for i in (1, 3)]
+    save_csv(rows, tmp_path / "res.csv")
+    cfg = {"results": str(tmp_path / "res.csv"), "output_dir": str(tmp_path / "out"), "criteria": [{"column": "mAP50", "type": "benefit"}]}
+    g = {"memory_column": "gpu_memory_gb", "missing_policy": "drop_criterion", "integration_pool": "kd_students"}
+    with pytest.raises(ValueError, match="TEST split"):
+        select("detection", cfg, g)
+    rep = select("detection", cfg, {**g, "allow_test_split": True})
+    assert rep["selected_kd_student"] == "m3"  # DET-03 is a KD student by experiment ID, DET-01 is the teacher

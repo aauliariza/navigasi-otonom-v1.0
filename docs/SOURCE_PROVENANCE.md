@@ -1,7 +1,35 @@
-# Referensi dan Implementasi
+# Source Provenance
 
-Dokumen ini memetakan setiap metode penting ke sumber ilmiah dan sumber kode yang dirujuk, beserta adaptasi
-yang dilakukan untuk YOLO26 dan status verifikasinya.
+Dokumen ini memetakan setiap komponen ke publikasi dan kode sumber yang menjadi dasarnya, berkas yang diadaptasi,
+dan modifikasinya. Versi kode yang diperiksa: **`ultralytics==8.4.194`** (paket PyPI, diperiksa langsung di
+`site-packages`), repository resmi CA (`Andrew-Qibin/CoordAttention`) dan CBAM (`Jongchan/attention-module`) sebagai
+rujukan struktur (tidak disalin; ditulis ulang mengikuti paper dan kode resmi), serta repository referensi
+`aauliariza/autonomous-wheelchair-v1.0` (commit `main` terbaru saat audit, 31 Oktober 2026).
+
+## 0. Tabel provenance ringkas
+
+| Komponen | Paper/Publikasi | Repository | File yang Diadaptasi | Modifikasi |
+|---|---|---|---|---|
+| YOLO26 (DET) | Ultralytics (2026), dokumentasi YOLO26 (dokumentasi teknis, bukan paper peer-review) | ultralytics/ultralytics 8.4.194 | `cfg/models/26/yolo26.yaml`, `nn/modules/head.py::Detect` | Tidak ada; `nc = 1` |
+| YOLO26-Depth | Ultralytics, dokumentasi task depth | idem | `cfg/models/26/yolo26-depth.yaml`, `nn/modules/head.py::Depth`, `utils/loss.py::DepthLoss26`, `models/yolo/depth/*` | Arsitektur & loss GT tidak diubah; kalibrasi otomatis diganti log-affine 2 parameter pada validasi internal |
+| Feature KD deteksi (DET-03, DET-06) | Proposal 3.2.4.2; Romero et al. (2015) FitNets (konsep); Jung & Nam (2025) | ultralytics 8.4.194 | `nn/distill_model.py` (`DistillationModel`, `loss_sl2`) | Subclass `DetectionKDModel`; logika L2 berbobot skor teacher identik (diuji) |
+| Prediction KD deteksi (DET-04…06) | Hinton et al. (2015, arXiv); Chen et al. (NeurIPS 2017) | — (tidak ada untuk YOLO26) | — | **Adaptasi konsep paper, bukan reproduksi kode penulis**: BCE soft-label + L1 box berbobot confidence teacher pada kedua cabang head |
+| Coordinate Attention | Hou, Zhou & Feng (CVPR 2021), doi:10.1109/CVPR46437.2021.01350 | Andrew-Qibin/CoordAttention | `coordatt.py` (rujukan struktur) | Ditulis ulang, konstruktor gaya YAML Ultralytics; disisipkan pada P3/P4/P5 teacher |
+| CBAM | Woo et al. (ECCV 2018), doi:10.1007/978-3-030-01234-2_1 | Jongchan/attention-module | `MODELS/cbam.py` (rujukan struktur) | Ditulis ulang (channel gate + spatial gate 7×7 + BN); disisipkan pada P3/P4/P5 teacher depth |
+| Depth Output KD | Lee et al. (IEEE Access 2025); Girshick (ICCV 2015) untuk Smooth L1 | — | — | **Adaptasi konsep** (rumus Pers. 2.9 proposal) |
+| Feature KD depth | Song & Kim (JVCIR 2022); Jung & Nam (2025) | — | — | **Adaptasi konsep**: proyektor teacher→student, MSE fitur ter-normalisasi L2 |
+| Boundary KD | Liu & Wang (Electronics 2024) | — | — | **Adaptasi konsep** (Pers. 2.11–2.12) dengan mask gradien valid |
+| Relative Depth KD | Zhang et al. (Neurocomputing 2026); Chen et al. (NeurIPS 2016) | — | — | **Adaptasi konsep** (Pers. 2.13–2.14), 4.096 pasangan, toleransi 0,03, sampler ber-seed |
+| Kalibrasi log-affine | Jun, Lee & Kim (JVCIR 2024) | ultralytics `models/yolo/depth/calibrate.py` (pembanding) | — | Kuadrat terkecil 2 parameter pada validasi internal |
+| Dekode depth SUN RGB-D | Song, Lichtenberg & Xiao (CVPR 2015); proposal Pers. 3.1–3.2 | ultralytics `cfg/datasets/depth-sunrgbd.yaml` (skrip download) | rumus `(d >> 3) \| (d << 13)` | Nilai > 10 m diinvalidasi, split resmi dipakai |
+| Split + validasi internal | Pembagian resmi SUN RGB-D (`allsplit.mat`) | SUNRGBDtoolbox | `traintestSUNRGBD/allsplit.mat` | Validasi internal per grup rekaman (implementasi repository ini) |
+| EWM | Proposal Pers. 3.29–3.32; Linh, Son & Thao (ETASR 2025) | — | — | Implementasi rumus; kasus 0, konstan, NaN/Inf, negatif ditangani |
+| SAW | Proposal Pers. 3.27–3.33 | — | — | Normalisasi cost `min/x` (koreksi Pers. 3.28) |
+| Inner ROI & jarak objek | Proposal Pers. 3.11–3.19; Ali & Yu (Sensors 2026) | — | — | Koreksi Pers. 3.17 |
+| Navigasi lima sektor | Proposal 3.2.4.7 | — | — | Implementasi literal aturan proposal; tanpa hysteresis/smoothing |
+| Pola dataset/KD | — | aauliariza/autonomous-wheelchair-v1.0 (AGPL-3.0) | `datasets/scripts/prepare_sunrgbd.py`, `convert_sunrgbd_obstacle.py` (dibaca, tidak disalin) | Hanya pola desain (normalisasi path scene, format Meta2DBB) |
+
+Seluruh rincian per komponen ada di bagian 1–7 di bawah.
 
 **Arti status**
 
@@ -28,9 +56,9 @@ Mohon cek ulang sebelum dikutip di tesis.
 | Komponen | Referensi jurnal / dokumen | Repository | File sumber | Adaptasi untuk penelitian ini | Status |
 |---|---|---|---|---|---|
 | YOLO26 (deteksi) | Ultralytics (2026), dokumentasi YOLO26, https://docs.ultralytics.com/models/yolo26/ | https://github.com/ultralytics/ultralytics (AGPL-3.0) | `ultralytics/cfg/models/26/yolo26.yaml`, `ultralytics/nn/modules/head.py` (`Detect`) | Arsitektur tidak diubah; `nc=1` (kelas "objek"). | Terverifikasi |
-| YOLO26-Depth | Ultralytics, https://docs.ultralytics.com/tasks/depth/ | idem | `cfg/models/26/yolo26-depth.yaml`, `nn/modules/head.py` (`Depth`), `models/yolo/depth/{train,val,predict}.py`, `utils/loss.py` (`DepthLoss26`) | Arsitektur dan loss ground truth (SILog + gradient matching) tidak diubah. Kalibrasi otomatis Ultralytics (scale-only, di-fit pada split validasi) diganti dengan kalibrasi log-affine yang di-fit pada split train (lihat §4). | Terverifikasi |
+| YOLO26-Depth | Ultralytics, https://docs.ultralytics.com/tasks/depth/ | idem | `cfg/models/26/yolo26-depth.yaml`, `nn/modules/head.py` (`Depth`), `models/yolo/depth/{train,val,predict}.py`, `utils/loss.py` (`DepthLoss26`) | Arsitektur dan loss ground truth (SILog + gradient matching) tidak diubah. Kalibrasi otomatis Ultralytics (scale-only) diganti dengan kalibrasi log-affine dua parameter yang di-fit pada validasi internal (lihat §4). | Terverifikasi |
 | Trainer, EMA, early stopping, resume | idem | idem | `ultralytics/engine/trainer.py` | Dipakai apa adanya. Kelas trainer diturunkan (`ResearchTrainerMixin`) untuk membangun model ber-attention, transfer bobot, dan log memori GPU. | Terverifikasi |
-| Dataset SUN RGB-D | S. Song, S. P. Lichtenberg, J. Xiao, "SUN RGB-D: A RGB-D Scene Understanding Benchmark Suite", CVPR 2015, doi:10.1109/CVPR.2015.7298655 (verifikasi bibliografi: belum daring) | https://rgbd.cs.princeton.edu/ | `SUNRGBD.zip`, `SUNRGBDtoolbox/traintestSUNRGBD/allsplit.mat`, `SUNRGBDMeta2DBB_v2.mat` | Split resmi `alltrain`/`alltest` (5.285/5.050), dekode bit-rotation, anotasi 2D satu kelas. | Diadaptasi |
+| Dataset SUN RGB-D | S. Song, S. P. Lichtenberg, J. Xiao, "SUN RGB-D: A RGB-D Scene Understanding Benchmark Suite", CVPR 2015, doi:10.1109/CVPR.2015.7298655 (verifikasi bibliografi: belum daring) | https://rgbd.cs.princeton.edu/ | `SUNRGBD.zip`, `SUNRGBDtoolbox/traintestSUNRGBD/allsplit.mat`, `SUNRGBDMeta2DBB_v2.mat` | Split resmi `alltrain`/`alltest` (5.285/5.050; alltest = test), validasi internal per grup dari alltrain, dekode bit-rotation, anotasi 2D satu kelas. | Diadaptasi |
 | Dekode depth SUN RGB-D | Proposal Persamaan (3.1)–(3.2) | Ultralytics `cfg/datasets/depth-sunrgbd.yaml` (skrip `download`) | baris `(d >> 3) \| (d << 13)` | Rumus sama. Bedanya: nilai > 10 m **diinvalidasi**, tidak di-clip (keputusan D-3), dan split resmi dipakai menggantikan split acak 9.245/1.090 milik Ultralytics. | Diadaptasi |
 | Format anotasi `SUNRGBDMeta2DBB_v2.mat` | Field `gtBb2D = [x, y, w, h]` | crmauceri/SUNRGBD_COCO (`SUNRGB_to_COCO.m`), facebookresearch/votenet (`sunrgbd/matlab/extract_rgbd_data_v2.m`), seperti terdokumentasi di repository referensi `aauliariza/autonomous-wheelchair-v1.0` (`datasets/scripts/convert_sunrgbd_obstacle.py`) | — | Pembacaan dengan `scipy.io.loadmat`, satu kelas, aturan pembersihan box. Format diuji dengan berkas `.mat` sintetis berstruktur sama, belum dengan berkas asli (lihat bagian *Komponen yang belum dapat diuji* di README). | Diadaptasi |
 
@@ -42,7 +70,7 @@ Mohon cek ulang sebelum dikutip di tesis.
 | CBAM | S. Woo, J. Park, J.-Y. Lee, I. S. Kweon, "CBAM: Convolutional Block Attention Module", ECCV 2018, LNCS 11211, pp. 3–19, doi:10.1007/978-3-030-01234-2_1 (keberadaan: terverifikasi via Consensus) | https://github.com/Jongchan/attention-module | `MODELS/cbam.py` | Channel gate (MLP bersama, avg+max pool, reduksi 16), lalu spatial gate (konv 7×7 + BN atas [max, mean]). Disisipkan pada **teacher YOLO26x-Depth** di P3/P4/P5 (layer 23–25) sebelum Depth head (layer 26). | Diadaptasi (dimodifikasi) |
 
 Proposal BAB 1–3 **tidak** mencantumkan CA maupun CBAM. Keduanya diimplementasikan karena diminta secara
-eksplisit pada spesifikasi eksperimen (prompt bagian 5). Lihat METHODOLOGY.md, keputusan A-1.
+eksplisit pada spesifikasi eksperimen (prompt bagian 5). Lihat EXPERIMENT_DESIGN_DECISIONS.md, keputusan A-1.
 
 ## 3. Knowledge Distillation deteksi objek
 
@@ -62,7 +90,7 @@ eksplisit pada spesifikasi eksperimen (prompt bagian 5). Lihat METHODOLOGY.md, k
 | Boundary Distillation (Pers. 2.11–2.12) | Liu & Wang (2024), Electronics 13(9):1652, doi:10.3390/electronics13091652; Yang et al. (2025), Neurocomputing 640:130314 (dari proposal) | — | `src/losses/boundary_loss.py` | Beda maju (*forward difference*), magnitudo `√(Gx²+Gy²)`, SmoothL1. Gradien hanya valid bila semua piksel yang dipakai valid. | Implementasi eksperimental |
 | Relative Depth Distillation (Pers. 2.13–2.14) | Zhang et al. (2026), Neurocomputing 671:132632, doi:10.1016/j.neucom.2026.132632; W. Chen, Z. Fu, D. Yang, J. Deng, "Single-Image Depth Perception in the Wild", NeurIPS 2016, arXiv:1604.03901 (bentuk *ranking loss* dan suku pasangan "sama") | — | `src/losses/relative_depth_loss.py` | 4.096 pasangan per citra disampel dengan `torch.Generator` ber-seed. Label ordinal dengan toleransi 0,03. Pasangan `r≠0` memakai logistic ranking (Pers. 2.14). Pasangan `r=0` memakai `ΔS²` (Chen et al., 2016), yang dapat diganti `ignore`. | Implementasi eksperimental |
 | Total loss (Pers. 2.8 / prompt 5.2-F) | Proposal Pers. (3.10), tanpa suku ROI | — | `src/losses/combined_loss.py` | λ_output 0,5; λ_feature 0,2; λ_boundary 0,1; λ_relative 0,1. Setiap komponen dapat di-*toggle* dan dicatat. | Diadaptasi |
-| Kalibrasi log-affine (Pers. 2.4) | Jun, Lee & Kim (2024), JVCIR 103:104252, doi:10.1016/j.jvcir.2024.104252 | Ultralytics `models/yolo/depth/calibrate.py` (sebagai pembanding) | `models/depth/yolo26_depth.py` | Kuadrat terkecil bentuk tertutup `log D_gt = a·log D_pred + b` pada piksel valid split **train**. Nilai (a, b) ditulis ke buffer `cal_a`/`cal_b` checkpoint. Bila `a ≤ 0`, dipakai fallback scale-only. | Diadaptasi |
+| Kalibrasi log-affine (Pers. 2.4) | Jun, Lee & Kim (2024), JVCIR 103:104252, doi:10.1016/j.jvcir.2024.104252 | Ultralytics `models/yolo/depth/calibrate.py` (sebagai pembanding) | `models/depth/yolo26_depth.py` | Kuadrat terkecil bentuk tertutup `log D_gt = a·log D_pred + b` pada piksel valid split **val** (validasi internal dari alltrain; test tidak pernah dipakai). Nilai (a, b) ditulis ke buffer `cal_a`/`cal_b` checkpoint. Bila `a ≤ 0`, dipakai fallback scale-only. | Diadaptasi |
 
 Object ROI Distillation dari proposal (Pers. 3.9–3.10) **tidak diimplementasikan**, sesuai instruksi.
 
@@ -73,7 +101,7 @@ Object ROI Distillation dari proposal (Pers. 3.9–3.10) **tidak diimplementasik
 | mAP50, mAP50-95 | Proposal Pers. 3.21; Ultralytics `DetectionValidator` | `src/evaluation/evaluate_detection.py` | Satu kelas: mAP = AP. | Terverifikasi |
 | Precision, Recall, F1 | Proposal Pers. 3.22–3.24 | `src/evaluation/metrics.py` | Pencocokan greedy satu-ke-satu pada IoU ≥ 0,5 untuk deteksi conf ≥ 0,25. Nilai P/R Ultralytics pada F1-maks juga disimpan (`*_maxf1`). | Diadaptasi |
 | Metrik depth (δ1–3, AbsRel, SqRel, RMSE, RMSE log) | Proposal Pers. 3.34–3.38; D. Eigen, C. Puhrsch, R. Fergus, NeurIPS 2014, arXiv:1406.2283 | `src/evaluation/metrics.py` | Dihitung *pooled* atas semua piksel valid (utama), plus rata-rata per citra. Tanpa median alignment. | Diadaptasi |
-| FLOPs, FPS, memori | Proposal Pers. 3.25–3.26; Liu et al. (2022), IEEE Access 10:39674 (memori GPU) | `src/evaluation/benchmark.py` | FLOPs = 2×MAC (thop, lewat `ultralytics.utils.torch_utils.get_flops`). | Terverifikasi |
+| FLOPs, FPS, memori | Proposal Pers. 3.25–3.26; Liu et al. (2022), IEEE Access 10:39674 (memori GPU) | `src/evaluation/benchmark.py` | FLOPs = 2×MAC (`thop.profile` dari `ultralytics-thop`, dipanggil langsung agar error tidak menjadi 0; nilai sama dengan `get_flops`). | Terverifikasi |
 | EWM | Proposal Pers. 3.29–3.32; Linh, Son & Thao (2025), ETASR 15(1):19998–20004, doi:10.48084/etasr.9518 | `src/optimization/entropy_weight.py` | Kasus nilai nol, kolom identik, dan m = 1 ditangani eksplisit. | Diadaptasi |
 | SAW | Proposal Pers. 3.27, 3.28, 3.33 | `src/optimization/simple_additive_weighting.py` | Normalisasi cost memakai `min/x` (koreksi Pers. 3.28, keputusan M-2). | Diadaptasi |
 | Inner ROI, jarak objek | Proposal Pers. 3.11–3.19; Ali & Yu (2026), Sensors 26(16):5013, doi:10.3390/s26165013 (protokol *same-box*) | `src/integration/*` | Pers. 3.17 dikoreksi menjadi `y2 − 0,2h` (keputusan I-1). | Diadaptasi |

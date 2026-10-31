@@ -1,6 +1,6 @@
 """Object-distance accuracy of the integrated system (proposal Sub-bab 3.2.5.3, Eq. 3.39-3.43).
 
-``gt_source: sunrgbd`` (same-box protocol): for each val image the detector boxes are reduced with the SAME
+``gt_source: sunrgbd`` (same-box protocol): for each image of the configured split (default: official test) the detector boxes are reduced with the SAME
 inner-ROI / valid-filter / percentile-clip / median procedure on (a) the predicted metric depth and (b) the
 SUN RGB-D ground-truth depth, so the difference only comes from the depth source. Only objects valid in both
 (R_valid >= 0.30) are scored; invalid ones are counted separately.
@@ -10,7 +10,7 @@ columns ``image,x1,y1,x2,y2,gt_distance_m`` (box drawn around the measured objec
 box is matched to a detection (IoU >= match_iou); unmatched objects are reported as ``not_detected``.
 
 Outputs: ``distance_per_object.csv`` (true distance, estimate, |error|, error %, validity), ``distance_summary.json``
-/ ``.csv`` (MAE, RMSE, MAPE, valid / invalid counts).
+/ ``.csv`` (MAE, RMSE, MAPE, valid / invalid counts), ``distance_evaluation.png`` (estimate vs. true, error histogram).
 
 Usage::
 
@@ -109,6 +109,10 @@ def run(ev: dict) -> dict:
     save_csv(rows, out / "distance_per_object.csv")
     save_json(summary, out / "distance_summary.json")
     save_csv([summary], out / "distance_summary.csv")
+    if ok:
+        from src.utils.visualization import plot_distance_evaluation
+
+        plot_distance_evaluation([r["distance_pred_m"] for r in ok], [r["distance_true_m"] for r in ok], out / "distance_evaluation.png")
     LOG.info("Distance: valid=%d/%d MAE=%.4f RMSE=%.4f MAPE=%.2f%%", summary["objects_valid"], summary["objects_total"], summary["mae"], summary["rmse"], summary["mape"])
     return summary
 

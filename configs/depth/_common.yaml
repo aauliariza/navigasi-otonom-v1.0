@@ -24,11 +24,25 @@ train:
   deterministic: true
   workers: 8
   plots: true
+  # Augmentasi (prompt 7.5). RGB dan depth ditransformasi sinkron oleh Ultralytics DepthDataset; depth tetap meter.
+  # Zoom (scale), rotasi, shear, perspektif DIMATIKAN: memperbesar citra membuat objek tampak lebih dekat tanpa
+  # mengubah nilai depth, sehingga skala metrik menjadi tidak konsisten (keputusan H-5). Mosaic/mixup/cutmix
+  # tidak didukung DepthDataset (dipaksa 0 oleh Ultralytics).
+  hsv_h: 0.015
+  hsv_s: 0.7
+  hsv_v: 0.4
+  fliplr: 0.5          # flip horizontal: geometri metrik tetap sah
+  flipud: 0.0          # flip vertikal tidak realistis untuk indoor
+  translate: 0.1       # pergeseran (isi 0 = invalid pada depth); tidak mengubah jarak
+  scale: 0.0
+  degrees: 0.0
+  shear: 0.0
+  perspective: 0.0
 
 # Log-affine calibration D_metric = exp(a log D_pred + b) setelah training (Sub-bab 3.2.4.3)
 calibration:
   enabled: true
-  split: train        # dataset untuk fitting (a, b); bukan validation agar tidak terjadi kebocoran
+  split: val          # (a, b) di-fit pada validasi internal (dari alltrain); test TIDAK pernah dipakai
   max_images: 1000
 
 kd:

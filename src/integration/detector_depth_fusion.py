@@ -36,27 +36,53 @@ from src.navigation.sector_division import divide_sectors
 from src.utils.config import apply_overrides, load_config, resolve_path
 from src.utils.io import load_json, save_csv, save_json
 from src.utils.logger import get_logger
-from src.utils.visualization import colorize_depth, draw_boxes, draw_sectors, side_by_side
+from src.utils.visualization import colorize_depth, draw_boxes, draw_sectors, draw_status, side_by_side
 
 LOG = get_logger("integration")
 
 
+class InferenceError(RuntimeError):
+    """Informative failure of the inference system: module, cause, related file and suggested fix."""
+
+    def __init__(self, module: str, cause: str, file: str | Path | None = None, solution: str | None = None):
+        self.module, self.cause, self.file, self.solution = module, cause, file, solution
+        msg = f"[{module}] {cause}"
+        if file is not None:
+            msg += f"\n  File   : {file}"
+        if solution:
+            msg += f"\n  Solusi : {solution}"
+        super().__init__(msg)
+
+
 def resolve_model_paths(cfg: dict) -> tuple[Path, Path]:
-    """Detection/depth checkpoints: explicit paths, else the EWM-SAW selection file."""
+    """Detection/depth checkpoints: explicit paths, else the EWM-SAW selection file. Both must exist."""
     m = cfg["models"]
     det, dep = m.get("detection_weights"), m.get("depth_weights")
     if not (det and dep):
         sel_path = resolve_path(m["selected_models"])
         if not sel_path.is_file():
-            raise FileNotFoundError(f"{sel_path} not found. Run model selection first or set models.detection_weights/depth_weights.")
+            raise InferenceError("model_loader", "file hasil pemilihan model (EWM-SAW) tidak ditemukan", sel_path,
+                                 "jalankan `python -m src.optimization.model_selection` atau isi models.detection_weights dan "
+                                 "models.depth_weights (CLI: --detection-weights / --depth-weights)")
         sel = load_json(sel_path)
         det, dep = det or sel["detection"]["weights"], dep or sel["depth"]["weights"]
-    return resolve_path(det), resolve_path(dep)
+    det, dep = resolve_path(det), resolve_path(dep)
+    for what, p in (("deteksi", det), ("depth", dep)):
+        if not p.is_file():
+            raise InferenceError("model_loader", f"checkpoint model {what} tidak ditemukan", p,
+                                 "latih eksperimen terkait terlebih dahulu (README bagian training) atau perbaiki path checkpoint")
+    return det, dep
 
 
 def _device(cfg_device) -> str:
+    """Torch device string; falls back to CPU (with a warning) when CUDA is requested but unavailable."""
     d = str(cfg_device)
-    return "cpu" if d == "cpu" or not torch.cuda.is_available() else (d if d.startswith("cuda") else f"cuda:{d}")
+    if d == "cpu":
+        return "cpu"
+    if not torch.cuda.is_available():
+        LOG.warning("[device] GPU '%s' diminta tetapi CUDA tidak tersedia; inferensi dijalankan di CPU (FPS akan lebih rendah).", d)
+        return "cpu"
+    return d if d.startswith("cuda") else f"cuda:{d}"
 
 
 class PerceptionPipeline:
@@ -69,11 +95,31 @@ class PerceptionPipeline:
         if detection_weights is None or depth_weights is None:
             detection_weights, depth_weights = resolve_model_paths(cfg)
         self.device = _device(cfg.get("device", "cpu"))
-        self.detector = YOLO(str(detection_weights))
-        self.depth_model = load_model(depth_weights, self.device)
+        try:
+            self.detector = YOLO(str(detection_weights))
+        except Exception as e:  # re-raised with context, never swallowed
+            raise InferenceError("detection_model", f"gagal memuat model deteksi: {type(e).__name__}: {e}", detection_weights,
+                                 "pastikan file adalah checkpoint Ultralytics YOLO26 (weights/best.pt) yang utuh") from e
+        try:
+            self.depth_model = load_model(depth_weights, self.device)
+        except Exception as e:
+            raise InferenceError("depth_model", f"gagal memuat model depth: {type(e).__name__}: {e}", depth_weights,
+                                 "pastikan file adalah checkpoint YOLO26-Depth (weights/best.pt) yang utuh") from e
+        if getattr(self.detector, "task", "detect") != "detect":
+            raise InferenceError("detection_model", f"checkpoint deteksi ber-task '{self.detector.task}', bukan 'detect'", detection_weights,
+                                 "tukar --detection-weights dan --depth-weights bila tertukar")
+        # Detect-head mode (keputusan D-6): False = one-to-many head + NMS (IoU 0.45, proposal Sub-bab 3.2.4.1; the
+        # Ultralytics 8.4.194 default for .pt checkpoints); True = NMS-free one-to-one head (IoU threshold unused).
+        self.end2end = bool(cfg["detection"].get("end2end", False))
+        self.detector.model.end2end = self.end2end
+        head = self.depth_model.model[-1]
+        if not hasattr(head, "cal_a"):
+            raise InferenceError("depth_model", "checkpoint depth tidak memiliki Depth head (cal_a/cal_b)", depth_weights,
+                                 "gunakan checkpoint hasil train_depth / train_depth_kd")
         n = cfg["navigation"]
         self.rules = BlockingRules(n["min_overlap"], n["block_distance"], n["invalid_depth_blocks"], n["low_confidence_blocks"], n["low_conf_threshold"])
-        self.weights = {"detection": str(detection_weights), "depth": str(depth_weights)}
+        self.weights = {"detection": str(detection_weights), "depth": str(depth_weights),
+                        "detection_head": "one2one_nms_free" if cfg["detection"].get("end2end", False) else "one2many_nms"}
 
     # --------------------------------------------------------------------------------------------------------- stages
     def detect(self, bgr: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -122,6 +168,9 @@ class PerceptionPipeline:
     # --------------------------------------------------------------------------------------------------------- full frame
     def process(self, bgr: np.ndarray) -> dict:
         """Run every stage on one BGR frame; timings are wall-clock ms (GPU synchronised)."""
+        if bgr is None or not isinstance(bgr, np.ndarray) or bgr.ndim != 3 or bgr.shape[2] != 3 or bgr.size == 0:
+            raise InferenceError("pipeline", f"frame tidak valid (shape={getattr(bgr, 'shape', None)}); dibutuhkan citra BGR HxWx3",
+                                 solution="periksa sumber gambar/video/kamera")
         sync = (lambda: torch.cuda.synchronize()) if self.device.startswith("cuda") else (lambda: None)
         t0 = time.perf_counter()
         boxes, conf = self.detect(bgr)
@@ -137,8 +186,8 @@ class PerceptionPipeline:
                 "timing_ms": {"detection": (t1 - t0) * 1e3, "depth": (t2 - t1) * 1e3, "fusion_navigation": (t3 - t2) * 1e3, "total": (t3 - t0) * 1e3}}
 
     @staticmethod
-    def render(bgr: np.ndarray, result: dict, max_depth: float = 10.0) -> np.ndarray:
-        """Visualisation: RGB with boxes, distance labels, sectors and direction | depth colormap."""
+    def render(bgr: np.ndarray, result: dict, max_depth: float = 10.0, status_lines: list[str] | None = None) -> np.ndarray:
+        """Visualisation: RGB with boxes, distance labels, ROI/sectors, direction and status text | depth colormap."""
         labels, colors = [], []
         for o in result["objects"]:
             dist = f"{o['distance_m']:.2f} m" if o["valid"] else "invalid"
@@ -146,6 +195,8 @@ class PerceptionPipeline:
             colors.append((0, 200, 255) if o["valid"] else (160, 160, 160))
         vis = draw_boxes(bgr, [o["bbox"] for o in result["objects"]], labels, colors)
         vis = draw_sectors(vis, result["sectors"], result["direction"])
+        lines = list(status_lines or []) + [f"latency {result['timing_ms']['total']:.0f} ms"]
+        vis = draw_status(vis, lines)
         return side_by_side(vis, colorize_depth(result["depth"], max_depth), height=bgr.shape[0])
 
 

@@ -40,6 +40,17 @@ def safe_name(name: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]+", "_", name).strip("_")
 
 
+def copy_into_experiment(metrics_json: Path, exp: dict, split: str) -> None:
+    """Keep a copy of the evaluation result inside the experiment folder (outputs/<task>/<ID>/evaluation/<split>/)."""
+    import shutil
+
+    from src.utils.checkpoint import experiment_dir
+
+    dst = experiment_dir(exp) / "evaluation" / split
+    dst.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(metrics_json, dst / "metrics.json")
+
+
 def operating_point(yolo, image_dir: Path, label_dir: Path, ev: dict) -> dict:
     """Exact TP/FP/FN, P, R, F1 of the detections used at inference time."""
     op = ev["operating_point"]
@@ -64,10 +75,12 @@ def evaluate_one(name: str, weights: Path, ev: dict, out_dir: Path) -> dict:
     data = yaml.safe_load(resolve_path(ev["data_yaml"]).read_text())
     root = Path(data["path"])
     yolo = YOLO(str(weights))
+    end2end = bool(ev["operating_point"].get("end2end", False))
+    yolo.model.end2end = end2end  # explicit Detect-head mode (keputusan D-6), identical for mAP and operating point
     val = yolo.val(data=str(resolve_path(ev["data_yaml"])), split=ev["split"], imgsz=ev["imgsz"], batch=ev["batch"], conf=ev["val_conf"],
                    device=ev["device"], plots=True, project=str(out_dir), name=safe_name(name), exist_ok=True, verbose=False)
     box = val.box
-    row = {"model": name, "weights": str(weights), "mAP50": float(box.map50), "mAP50-95": float(box.map),
+    row = {"model": name, "weights": str(weights), "detection_head": "one2one_nms_free" if end2end else "one2many_nms", "mAP50": float(box.map50), "mAP50-95": float(box.map),
            "precision_maxf1": float(box.mp), "recall_maxf1": float(box.mr), "f1_maxf1": f1_score(float(box.mp), float(box.mr))}
     op = operating_point(yolo, root / data[ev["split"]], root / data[ev["split"]].replace("images", "labels", 1), ev)
     row.update(precision=op["precision"], recall=op["recall"], f1=op["f1"], tp=op["tp"], fp=op["fp"], fn=op["fn"])
@@ -88,13 +101,16 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--set", nargs="*", default=[])
     args = ap.parse_args(argv)
     ev = apply_overrides(load_config(args.config), args.set)
-    out_dir = resolve_path(ev["output_dir"])
+    out_dir = resolve_path(str(ev["output_dir"]).format(split=ev["split"]))
     entries = list(ev["models"]) + (list(ev.get("extra_models", [])) if args.include_extra else [])
     rows = []
     for m in entries:
         exp = apply_overrides(load_config(m["config"]), ev.get("experiment_overrides", []))
         w = require_file(best_weights(exp), f"best.pt of {m['name']}", f"Train it first: {m['config']}")
-        rows.append({**evaluate_one(m["name"], w, ev, out_dir), "experiment_id": exp["experiment"]["id"], "role": "extra" if m in ev.get("extra_models", []) else "alternative"})
+        row = {**evaluate_one(m["name"], w, ev, out_dir), "experiment_id": exp["experiment"]["id"], "split": ev["split"],
+               "role": "extra" if m in ev.get("extra_models", []) else "alternative"}
+        copy_into_experiment(out_dir / safe_name(m["name"]) / "metrics.json", exp, ev["split"])
+        rows.append(row)
     save_csv(rows, out_dir / "detection_results.csv")
     save_json(rows, out_dir / "detection_results.json")
     save_json(hardware_description(ev["device"]), out_dir / "hardware.json")

@@ -9,4 +9,4 @@ kosong; jangan diisi dengan nilai karangan.
   `scenario_id,image,gt_direction,description`.
 
 Citra disimpan di folder ini (atau subfolder) dan dirujuk dengan path relatif. Protokol lengkap ada di
-`docs/EXPERIMENTS.md` §4–5.
+`docs/EXPERIMENT_MATRIX.md` §5–6.

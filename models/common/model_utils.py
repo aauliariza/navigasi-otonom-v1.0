@@ -128,9 +128,30 @@ def transfer_weights(model: nn.Module, weights, verbose: bool = True) -> int:
 
 
 def model_stats(model: nn.Module, imgsz: int = 640) -> dict:
-    """Total/trainable parameters and GFLOPs (2 x MACs, Eq. 3.25) of an Ultralytics model at ``imgsz``."""
-    from ultralytics.utils.torch_utils import get_flops
+    """Total/trainable parameters and GFLOPs (2 x MACs, Eq. 3.25) of an Ultralytics model at ``imgsz``.
 
+    FLOPs are counted by ``ultralytics-thop`` (``thop.profile``) on a full ``imgsz x imgsz`` input. Ultralytics'
+    own ``get_flops`` returns 0.0 on ANY profiling error (e.g. the unrelated legacy ``thop`` package shadowing
+    ``ultralytics-thop``); that silent 0 would enter EWM-SAW as "zero cost", so the profiler is called directly here
+    and a failure raises an informative error instead.
+    """
+    import copy as _copy
+
+    try:
+        import thop
+    except ImportError as e:
+        raise RuntimeError("[model_stats] FLOPs tidak dapat dihitung: paket 'ultralytics-thop' tidak terpasang. "
+                           "Solusi: pip install ultralytics-thop") from e
     total = sum(p.numel() for p in model.parameters())
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    return {"params_total": int(total), "params_trainable": int(trainable), "gflops": float(get_flops(model, imgsz))}
+    p0 = next(model.parameters())
+    im = torch.zeros((1, 3, imgsz, imgsz), device=p0.device, dtype=p0.dtype)
+    m = _copy.deepcopy(model).eval()
+    try:
+        macs = thop.profile(m, inputs=[im], verbose=False)[0]
+    except TypeError as e:  # wrong 'thop' distribution installed
+        raise RuntimeError(f"[model_stats] thop.profile gagal ({e}); kemungkinan paket lama 'thop' menimpa 'ultralytics-thop'. "
+                           "Solusi: pip uninstall -y thop && pip install --force-reinstall ultralytics-thop") from e
+    if not macs or macs <= 0:
+        raise RuntimeError("[model_stats] thop.profile menghasilkan 0 MAC; FLOPs tidak valid")
+    return {"params_total": int(total), "params_trainable": int(trainable), "gflops": float(macs) * 2 / 1e9, "flops_imgsz": imgsz}

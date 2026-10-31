@@ -20,6 +20,18 @@ def colorize_depth(depth_m: np.ndarray, max_depth: float = 10.0, invalid_color=(
     return vis
 
 
+def colorize_error(pred_m: np.ndarray, gt_m: np.ndarray, max_abs_rel: float = 0.5) -> np.ndarray:
+    """Absolute-relative error map ``|pred - gt| / gt`` (valid GT only, black = invalid) for display only."""
+    gt = np.nan_to_num(gt_m.astype(np.float32), nan=0.0, posinf=0.0, neginf=0.0)
+    pred = np.nan_to_num(pred_m.astype(np.float32), nan=0.0, posinf=0.0, neginf=0.0)
+    valid = gt > 0
+    err = np.zeros_like(gt)
+    err[valid] = np.abs(pred[valid] - gt[valid]) / gt[valid]
+    vis = cv2.applyColorMap((255 * np.clip(err / max_abs_rel, 0, 1)).astype(np.uint8), cv2.COLORMAP_INFERNO)
+    vis[~valid] = 0
+    return vis
+
+
 def draw_boxes(
     img: np.ndarray,
     boxes_xyxy: Iterable,
@@ -65,8 +77,63 @@ def draw_sectors(img: np.ndarray, sectors: list[dict], decision: str | None = No
     return out
 
 
+def draw_status(img: np.ndarray, lines: list[str], origin: tuple[int, int] = (10, 40)) -> np.ndarray:
+    """Write status lines (camera status, FPS, model names, ...) at the top-left below the sector labels."""
+    out = img.copy()
+    x, y = origin
+    for line in lines:
+        cv2.putText(out, line, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 3, cv2.LINE_AA)
+        cv2.putText(out, line, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+        y += 18
+    return out
+
+
 def side_by_side(*images: np.ndarray, height: int | None = None) -> np.ndarray:
     """Concatenate images horizontally after resizing them to a common height."""
     height = height or images[0].shape[0]
     resized = [cv2.resize(im, (int(im.shape[1] * height / im.shape[0]), height)) for im in images]
     return np.concatenate(resized, axis=1)
+
+
+def plot_distance_evaluation(pred: list[float], gt: list[float], path) -> None:
+    """Scatter predicted vs. ground-truth distance (with y = x) and histogram of the signed error."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    p, g = np.asarray(pred, float), np.asarray(gt, float)
+    fig, (a, b) = plt.subplots(1, 2, figsize=(10, 4.2), tight_layout=True)
+    hi = float(max(p.max(initial=0), g.max(initial=0), 1.0)) * 1.05
+    a.scatter(g, p, s=10, alpha=0.6, color="#2a6fdb")
+    a.plot([0, hi], [0, hi], color="#888", lw=1, ls="--", label="y = x")
+    a.set(xlim=(0, hi), ylim=(0, hi), xlabel="Jarak sebenarnya (m)", ylabel="Jarak estimasi (m)", title=f"Estimasi vs. sebenarnya (N = {p.size})")
+    a.legend(frameon=False)
+    b.hist(p - g, bins=40, color="#2a6fdb", alpha=0.85)
+    b.axvline(0, color="#888", lw=1, ls="--")
+    b.set(xlabel="Error estimasi - sebenarnya (m)", ylabel="Jumlah objek", title="Distribusi error")
+    for ax in (a, b):
+        for sp in ("top", "right"):
+            ax.spines[sp].set_visible(False)
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+
+
+def plot_confusion(cm_rows: list[dict], labels, path, title: str = "Arah sebenarnya vs. arah sistem") -> None:
+    """Heatmap of a confusion matrix given as rows ``{"gt\\pred": label, <pred label>: count, ...}``."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    m = np.array([[r[c] for c in labels] for r in cm_rows], dtype=float)
+    fig, ax = plt.subplots(figsize=(5.2, 4.4), tight_layout=True)
+    ax.imshow(m, cmap="Blues")
+    ax.set_xticks(range(len(labels)), labels, rotation=30, ha="right")
+    ax.set_yticks(range(len(labels)), labels)
+    ax.set(xlabel="Arah sistem", ylabel="Arah sebenarnya", title=title)
+    for i in range(m.shape[0]):
+        for j in range(m.shape[1]):
+            ax.text(j, i, int(m[i, j]), ha="center", va="center", color="white" if m[i, j] > m.max() / 2 else "black")
+    fig.savefig(path, dpi=150)
+    plt.close(fig)

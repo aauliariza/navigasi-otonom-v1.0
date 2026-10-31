@@ -5,10 +5,10 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 SET=("$@")
 run() { python -m "$1" --config "$2" ${SET:+--set "${SET[@]}"}; }
-run src.training.train_detection    configs/detection/teacher_x.yaml      # 5.1-1 YOLO26x (teacher)
-run src.training.train_detection    configs/detection/baseline.yaml       # 5.1-2 YOLO26n baseline
-run src.training.train_detection_kd configs/detection/feature_kd.yaml     # 5.1-3 Feature KD
-run src.training.train_detection_kd configs/detection/prediction_kd.yaml  # 5.1-4 Prediction KD
-run src.training.train_detection    configs/detection/teacher_x_ca.yaml   # teacher YOLO26x + CA
-run src.training.train_detection_kd configs/detection/ca_kd.yaml          # 5.1-5 CA teacher + KD
-run src.training.train_detection_kd configs/detection/ca_full_kd.yaml     # 5.1-6 CA teacher + Feature + Prediction KD
+run src.training.train_detection    configs/detection/teacher_x.yaml      # DET-01 YOLO26x (teacher)
+run src.training.train_detection    configs/detection/baseline.yaml       # DET-02 YOLO26n baseline
+run src.training.train_detection_kd configs/detection/feature_kd.yaml     # DET-03 Feature KD
+run src.training.train_detection_kd configs/detection/prediction_kd.yaml  # DET-04 Prediction KD
+run src.training.train_detection    configs/detection/teacher_x_ca.yaml   # TEACHER-CA: YOLO26x + Coordinate Attention
+run src.training.train_detection_kd configs/detection/ca_kd.yaml          # DET-05 CA teacher + Prediction KD
+run src.training.train_detection_kd configs/detection/ca_full_kd.yaml     # DET-06 CA teacher + Feature + Prediction KD

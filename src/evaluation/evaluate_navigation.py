@@ -2,15 +2,15 @@
 
 ``gt_source: scenarios``: indoor test scenarios recorded by the researcher, CSV columns
 ``scenario_id,image,gt_direction[,description]`` with ``gt_direction`` in FORWARD / TURN_LEFT / TURN_RIGHT / STOP,
-decided from the real object layout and measured distances of each scenario (docs/EXPERIMENTS.md).
+decided from the real object layout and measured distances of each scenario (docs/EXPERIMENT_MATRIX.md).
 
-``gt_source: sunrgbd``: a reference direction is derived for every val image by applying the SAME sector rule
+``gt_source: sunrgbd``: a reference direction is derived for every image of the configured split (default: official test) by applying the SAME sector rule
 to the ground-truth boxes with distances from the ground-truth depth (confidence 1.0, so the low-confidence rule
 never fires for GT). This isolates the error introduced by the learned models; it is a derived reference, not a
 human-annotated navigation label.
 
 Outputs: ``navigation_per_scenario.csv`` (status per sector FL..FR, predicted / true direction, correct),
-``navigation_summary.json`` / ``.csv`` (scenarios, correct decisions, accuracy %), ``confusion_matrix.csv``.
+``navigation_summary.json`` / ``.csv`` (scenarios, correct decisions, accuracy %), ``confusion_matrix.{csv,png}``.
 
 Usage::
 
@@ -99,6 +99,9 @@ def run(ev: dict) -> dict:
     save_csv(cm, out / "confusion_matrix.csv")
     save_json(summary, out / "navigation_summary.json")
     save_csv([summary], out / "navigation_summary.csv")
+    from src.utils.visualization import plot_confusion
+
+    plot_confusion(cm, DIRECTIONS, out / "confusion_matrix.png")
     LOG.info("Navigation accuracy: %d/%d = %.2f%%", acc["n_correct"], acc["n_total"], acc["accuracy_pct"])
     return summary
 

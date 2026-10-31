@@ -7,7 +7,7 @@ Normalisation:
 The proposal prints Eq. (3.28) as ``x_ij / min(x_ij)``; that expression is >= 1 and *grows* with the cost, so the
 worst alternative would score highest. The standard SAW cost normalisation ``min / x`` (Fishburn, 1967;
 MacCrimmon, 1968; used by Linh, Son & Thao, 2025, ETASR 15(1), doi:10.48084/etasr.9518) is implemented instead
--- see docs/METHODOLOGY.md, keputusan M-2.
+-- see docs/EXPERIMENT_DESIGN_DECISIONS.md, keputusan M-2.
 
 Zero handling: benefit with max = 0 -> r = 0; cost with x = 0 -> r = 1 for the zero-cost alternatives
 (they are the best possible) and min/x = 0 for the others.

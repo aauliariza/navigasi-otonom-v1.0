@@ -1,7 +1,7 @@
 _base_: _common.yaml
 experiment:
-  id: dep_02_yolo26n_depth_baseline
-  description: "Eksperimen 5.2-2: YOLO26n-Depth student baseline, tanpa KD"
+  id: DEP-02
+  description: "DEP-02: YOLO26n-Depth student baseline, tanpa KD"
 model:
   arch: yolo26n-depth.yaml
   weights: yolo26n-depth.pt

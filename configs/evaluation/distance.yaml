@@ -1,11 +1,11 @@
 # Evaluasi akurasi estimasi jarak objek (Sub-bab 3.2.5.3)
 system_config: configs/system/inference.yaml
 # sunrgbd  : jarak aktual = prosedur inner-ROI yang sama pada depth ground truth (protokol same-box, Ali & Yu 2026)
-# measured : jarak aktual hasil pengukuran langsung di lingkungan indoor (file CSV, lihat docs/EXPERIMENTS.md)
+# measured : jarak aktual hasil pengukuran langsung di lingkungan indoor (file CSV, lihat docs/EXPERIMENT_MATRIX.md)
 gt_source: sunrgbd
 data_yaml: datasets/sunrgbd_yolo/sunrgbd_depth.yaml
-split: val
+split: test                # evaluasi akhir sistem terintegrasi pada official test
 max_images: null                 # null = seluruh split
 measurements_csv: data_collection/distance_measurements.csv   # untuk gt_source=measured
 match_iou: 0.5                   # pencocokan box anotasi pengukuran dengan box deteksi
-output_dir: outputs/evaluation/distance
+output_dir: outputs/integration/distance_evaluation

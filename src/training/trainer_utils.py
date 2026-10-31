@@ -36,7 +36,8 @@ ULTRALYTICS_TRAIN_KEYS = {
     "warmup_momentum", "warmup_bias_lr", "cos_lr", "patience", "amp", "seed", "deterministic", "workers",
     "device", "cache", "plots", "close_mosaic", "save_period", "fraction", "val", "box", "cls", "dfl",
     "dlog", "dgrad", "dlam", "hsv_h", "hsv_s", "hsv_v", "degrees", "translate", "scale", "fliplr", "flipud",
-    "mosaic", "mixup", "rect", "nbs", "multi_scale", "time", "max_det", "conf", "iou",
+    "mosaic", "mixup", "rect", "nbs", "multi_scale", "time", "max_det", "conf", "iou", "shear", "perspective",
+    "cutmix", "copy_paste", "bgr", "erasing", "freeze",
 }
 
 
@@ -167,6 +168,24 @@ def teacher_checkpoint(cfg: dict) -> Path:
     return require_file(path, "Teacher checkpoint", f"Train the teacher first: {kd.get('teacher_config', '')}")
 
 
+def dataset_split_record(cfg: dict) -> dict:
+    """Which split file every experiment used (path, SHA-256, sizes), so all runs can be checked to share it."""
+    import yaml
+
+    data_yaml = resolve_path(cfg["data"]["yaml"])
+    rec = {"data_yaml": str(data_yaml)}
+    if data_yaml.is_file():
+        root = Path(yaml.safe_load(data_yaml.read_text(encoding="utf-8")).get("path", data_yaml.parent))
+        split_json = root / "meta" / "splits.json"
+        if split_json.is_file():
+            from src.utils.io import load_json
+
+            sp = load_json(split_json)
+            rec.update(splits_json=str(split_json), splits_sha256=sha256(split_json),
+                       sizes={k: len(sp[k]) for k in ("train", "val", "test") if k in sp})
+    return rec
+
+
 def build_ultralytics_args(cfg: dict, task: str, model_yaml: str, resume: bool) -> dict:
     """Translate an experiment YAML into the Ultralytics override dict."""
     run_dir = experiment_dir(cfg)
@@ -221,7 +240,8 @@ def run_training(cfg: dict, trainer_cls, task: str, model_yaml: str | None = Non
         args["distill_model"] = str(teacher_checkpoint(cfg))
         if "feature" in cfg["kd"] and "weight" in cfg["kd"]["feature"]:
             args["dis"] = float(cfg["kd"]["feature"]["weight"])
-    meta = {"ultralytics_args": args, **(extra_meta or {})}
+    meta = {"ultralytics_args": args, "dataset_split": dataset_split_record(cfg), "loss_and_kd": cfg.get("kd", {"enabled": False}),
+            "calibration": cfg.get("calibration"), **(extra_meta or {})}
     if "distill_model" in args:
         meta["teacher_checkpoint"] = args["distill_model"]
         meta["teacher_sha256"] = sha256(args["distill_model"])

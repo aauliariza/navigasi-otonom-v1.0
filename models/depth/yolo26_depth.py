@@ -7,9 +7,10 @@ P3/P4/P5 producing log-depth at 1/4 resolution, ``depth = exp(a * log d + b)`` w
 Log-affine calibration (Eq. 2.4, proposal Sub-bab 3.2.4.3): ``D_metric = exp(a * log D_pred + b)``. ``(a, b)`` are
 fitted in closed form by least squares on ``log D_gt = a * log D_pred + b`` over valid pixels (0.001-10 m) of a
 calibration set, then written into the checkpoint's ``cal_a``/``cal_b`` buffers so every later use of the
-checkpoint (evaluation, integration, interface) outputs metric depth. To avoid fitting on the data used for
-evaluation, the default calibration set is the TRAINING split (``calibration.split: train``); this replaces the
-Ultralytics automatic calibration, which fits a scale-only correction on the validation split.
+checkpoint (evaluation, integration, interface) outputs metric depth. The calibration set is the INTERNAL
+VALIDATION split (``calibration.split: val``, carved out of the official alltrain, src/data/create_split.py), never
+the official test split, as required by the prompt (section 10). Compared with the Ultralytics automatic
+calibration (scale-only, a fixed to 1), the full two-parameter log-affine form of Eq. (2.4) is fitted.
 """
 
 from __future__ import annotations

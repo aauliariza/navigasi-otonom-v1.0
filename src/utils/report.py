@@ -1,11 +1,15 @@
 """Compile the research report (Markdown) from the artefacts that actually exist under an output root.
 
 Every section is filled only from files written by the pipeline; a missing artefact is reported as
-"BELUM DIJALANKAN" (not run yet) instead of being guessed.
+"BELUM DIJALANKAN" (not run yet) and a missing metric of a listed experiment ID as ``NOT MEASURED``, never guessed.
+
+Sections 2-3 list every experiment ID of the prompt (DET-01..06, DEP-01..09) for the validation split (used by
+EWM-SAW) and the official test split (final evaluation) separately; the same tables are exported as
+``experiment_summary_{detection,depth}_{val,test}.csv`` next to the report.
 
 Usage::
 
-    python -m src.utils.report --root outputs --out outputs/RESEARCH_REPORT.md
+    python -m src.utils.report --root outputs --out outputs/reports/experiment_summary/RESEARCH_REPORT.md
 """
 
 from __future__ import annotations
@@ -15,9 +19,29 @@ from datetime import datetime
 from pathlib import Path
 
 from src.utils.config import resolve_path
-from src.utils.io import load_csv, load_json
+from src.utils.io import load_csv, load_json, save_csv
 
 NOT_RUN = "_BELUM DIJALANKAN — artefak tidak ditemukan._"
+NOT_MEASURED = "NOT MEASURED"
+DET_IDS = [f"DET-0{i}" for i in range(1, 7)] + ["TEACHER-CA"]
+DEP_IDS = [f"DEP-0{i}" for i in range(1, 10)] + ["TEACHER-CBAM"]
+DET_COLS = ["mAP50", "mAP50-95", "precision", "recall", "f1", "fps", "params", "gflops", "gpu_memory_gb"]
+DEP_COLS = ["delta1", "delta2", "delta3", "abs_rel", "sq_rel", "rmse", "rmse_log", "fps", "params", "gflops", "gpu_memory_gb"]
+
+
+def experiment_table(root: Path, fname: str, split: str, ids: list[str], cols: list[str]) -> list[dict]:
+    """One row per experiment ID; values from ``<...>/<split>/<fname>`` (or rows tagged with that split)."""
+    found: dict[str, dict] = {}
+    for p in sorted(root.rglob(fname)):
+        for r in load_csv(p):
+            if r.get("split", p.parent.name) == split and r.get("experiment_id"):
+                found[r["experiment_id"]] = r
+    rows = []
+    for i in ids:
+        r = found.get(i)
+        rows.append({"experiment_id": i, "model": r["model"] if r else NOT_MEASURED,
+                     **{c: (r.get(c) if r and r.get(c) not in (None, "", "None") else NOT_MEASURED) for c in cols}})
+    return rows
 
 
 def _fmt(v) -> str:
@@ -42,7 +66,7 @@ def _find(root: Path, name: str) -> Path | None:
     return hits[0] if hits else None
 
 
-def build_report(root: Path) -> str:
+def build_report(root: Path, out_dir: Path | None = None) -> str:
     """Return the Markdown report for all artefacts below ``root``."""
     s = ["# Laporan Hasil Penelitian", "", f"Dibuat otomatis: {datetime.now().astimezone().isoformat(timespec='seconds')}  ",
          f"Sumber artefak: `{root}`", ""]
@@ -56,13 +80,16 @@ def build_report(root: Path) -> str:
     else:
         s += [NOT_RUN, ""]
 
-    for title, fname, cols in (
-        ("2. Evaluasi deteksi objek", "detection_results.csv", ["model", "mAP50", "mAP50-95", "precision", "recall", "f1", "fps", "params", "gflops", "gpu_memory_gb", "role"]),
-        ("3. Evaluasi monocular depth estimation", "depth_results.csv", ["model", "delta1", "delta2", "delta3", "abs_rel", "sq_rel", "rmse", "rmse_log", "fps", "params", "gflops", "gpu_memory_gb", "role"]),
+    for title, task, fname, ids, cols in (
+        ("2. Evaluasi deteksi objek", "detection", "detection_results.csv", DET_IDS, DET_COLS),
+        ("3. Evaluasi monocular depth estimation", "depth", "depth_results.csv", DEP_IDS, DEP_COLS),
     ):
         s += [f"## {title}", ""]
-        p = _find(root, fname)
-        s += ([f"Sumber: `{p}`", "", _table(load_csv(p), cols), ""] if p else [NOT_RUN, ""])
+        for split, label in (("val", "validasi internal (dasar EWM-SAW)"), ("test", "official test (evaluasi akhir)")):
+            rows = experiment_table(root, fname, split, ids, cols)
+            if out_dir is not None:
+                save_csv(rows, out_dir / f"experiment_summary_{task}_{split}.csv")
+            s += [f"### Split {split}: {label}", "", _table(rows, ["experiment_id", "model", *cols]), ""]
 
     s += ["## 4. Pemilihan model EWM-SAW", ""]
     found = False
@@ -107,11 +134,11 @@ def main(argv: list[str] | None = None) -> int:
     """CLI entry point."""
     ap = argparse.ArgumentParser(description="Compile RESEARCH_REPORT.md from pipeline artefacts")
     ap.add_argument("--root", default="outputs")
-    ap.add_argument("--out", default="outputs/RESEARCH_REPORT.md")
+    ap.add_argument("--out", default="outputs/reports/experiment_summary/RESEARCH_REPORT.md")
     args = ap.parse_args(argv)
     out = resolve_path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(build_report(resolve_path(args.root)), encoding="utf-8")
+    out.write_text(build_report(resolve_path(args.root), out.parent), encoding="utf-8")
     print(f"Report written to {out}")
     return 0
 

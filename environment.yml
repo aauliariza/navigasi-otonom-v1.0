@@ -1,0 +1,22 @@
+# Conda environment (proposal Tabel 3.5: Python 3.11, PyTorch >= 2.4, Torchvision >= 0.19, Ultralytics 8.4.x < 9).
+# GPU: setelah `conda env create -f environment.yml`, pasang PyTorch sesuai CUDA dari https://pytorch.org/get-started/locally/
+#      (contoh CUDA 12.8: pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128)
+name: navigasi-otonom
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+      - torch>=2.4.0
+      - torchvision>=0.19.0
+      - ultralytics>=8.4.194,<9.0.0
+      - ultralytics-thop>=2.0
+      - numpy>=1.24.0
+      - opencv-python>=4.8.0
+      - scipy>=1.11.0
+      - PyYAML>=6.0
+      - pandas>=2.0
+      - matplotlib>=3.7
+      - gradio>=4.0
+      - pytest>=7.4
