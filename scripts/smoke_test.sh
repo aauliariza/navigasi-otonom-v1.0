@@ -12,7 +12,7 @@ python -m src.data.prepare_sunrgbd --set source.sunrgbd_root=$OUT/raw/SUNRGBD \
   source.split_file=$OUT/raw/SUNRGBDtoolbox/traintestSUNRGBD/allsplit.mat source.bbox_meta=$OUT/raw/SUNRGBDMeta2DBB_v2.mat \
   output.root=$OUT/data output.detect_yaml=$OUT/data/detect.yaml output.depth_yaml=$OUT/data/depth.yaml
 python scripts/data/validate_dataset.py --set output.root=$OUT/data output.report_dir=$OUT/dataset \
-  split.expected_counts.train_official=10 split.expected_counts.test=4
+  split.expected_counts.train_official=10 split.expected_counts.alltest=4
 C="data.integrity_report=$OUT/dataset/integrity_report.json model.weights=null train.epochs=1 train.batch=4 train.imgsz=96 train.workers=0 train.device=cpu train.amp=false train.plots=false output.root=$OUT/runs"
 D="$C data.yaml=$OUT/data/detect.yaml"
 P="$C data.yaml=$OUT/data/depth.yaml"
@@ -38,7 +38,7 @@ for c in cbam_kd cbam_full_kd; do
 done
 E="device=cpu imgsz=96 batch=4 benchmark.warmup=2 benchmark.iters=5 experiment_overrides=[output.root=$OUT/runs]"
 # seleksi pada validasi internal, evaluasi akhir pada official test
-for SPLIT in val test; do
+for SPLIT in val; do  # mode split proposal: tidak ada split test
   python -m src.evaluation.evaluate_detection --include-extra --set split=$SPLIT data_yaml=$OUT/data/detect.yaml "output_dir=$OUT/eval/detection/{split}" $E
   python -m src.evaluation.evaluate_depth     --include-extra --set split=$SPLIT data_yaml=$OUT/data/depth.yaml  "output_dir=$OUT/eval/depth/{split}" $E
 done
@@ -46,11 +46,11 @@ python -m src.optimization.model_selection --set detection.results=$OUT/eval/det
   detection.output_dir=$OUT/selection depth.results=$OUT/eval/depth/val/depth_results.csv \
   depth.output_dir=$OUT/selection selected_models_path=$OUT/selection/selected_models.json
 SYS="models.selected_models=$OUT/selection/selected_models.json output_dir=$OUT/system detection.imgsz=96 depth.imgsz=96 detection.conf=0.001"
-python -m src.inference.predict_image --source $OUT/data/images/test --output $OUT/inference/images --set $SYS
+python -m src.inference.predict_image --source $OUT/data/images/val --output $OUT/inference/images --set $SYS
 python - "$OUT" <<'PY'
 import sys, glob, cv2
 out = sys.argv[1]
-frames = [cv2.imread(p) for p in sorted(glob.glob(f"{out}/data/images/test/*.jpg"))]
+frames = [cv2.imread(p) for p in sorted(glob.glob(f"{out}/data/images/val/*.jpg"))]
 h, w = frames[0].shape[:2]
 vw = cv2.VideoWriter(f"{out}/clip.avi", cv2.VideoWriter_fourcc(*"MJPG"), 5.0, (w, h))
 for f in frames * 3:

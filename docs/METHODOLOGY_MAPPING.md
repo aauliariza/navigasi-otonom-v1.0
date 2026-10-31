@@ -7,7 +7,7 @@ Keputusan yang menyimpang dari proposal ada di [EXPERIMENT_DESIGN_DECISIONS.md](
 
 | Proposal | Isi | Modul / CLI | Config |
 |---|---|---|---|
-| 3.2.3.1, Tabel 3.6 | Dataset SUN RGB-D, pembagian resmi | `src/data/prepare_sunrgbd.py`, `src/data/create_split.py` | `configs/dataset/sunrgbd.yaml` |
+| 3.2.3.1, Tabel 3.6 | Dataset SUN RGB-D, pembagian 5.285 / 5.050 | `src/data/prepare_sunrgbd.py` (`split.mode: proposal`) | `configs/dataset/sunrgbd.yaml` |
 | 3.2.3.2, Pers. 3.1–3.2 | Pairing RGB-depth, dekode uint16, meter | `src/data/pair_rgb_depth.py`, `src/data/prepare_depth.py` | idem |
 | 3.2.3.3, Pers. 3.3–3.8 | Dataset deteksi satu kelas, YOLO, sisi ≥ 4 px | `src/data/prepare_annotations.py` | idem |
 | Tabel 3.7 | Hyperparameter deteksi | `configs/detection/_common.yaml` (+ batch 8 pada teacher) | — |
@@ -56,7 +56,7 @@ Keputusan yang menyimpang dari proposal ada di [EXPERIMENT_DESIGN_DECISIONS.md](
 | 5 (DET-01…06) | `configs/detection/*.yaml`, `scripts/train_all_detection.sh`, [EXPERIMENT_MATRIX.md](EXPERIMENT_MATRIX.md) |
 | 6 (DEP-01…09) | `configs/depth/*.yaml`, `scripts/train_all_depth.sh` |
 | 7.1 pairing | `src/data/pair_rgb_depth.py` (identitas scene, bukan urutan berkas) |
-| 7.2 split + validasi internal | `src/data/create_split.py`, `meta/splits.json`, cek kebocoran di `src/data/validate_dataset.py` |
+| 7.2 split | `split.mode: proposal` (train 5.285 / val 5.050, keputusan peneliti S-0) atau `internal` (`src/data/create_split.py`); `meta/splits.json`; cek jumlah dan kebocoran di `src/data/validate_dataset.py` |
 | 7.3 depth | `src/data/prepare_depth.py` |
 | 7.4 anotasi | `src/data/prepare_annotations.py` |
 | 7.5 augmentasi | augmentasi Ultralytics (deteksi: mosaic, HSV, flip, scale, translate; depth: transformasi geometris sinkron RGB-depth oleh `DepthDataset`); semua parameter dapat diatur di `train:` (`hsv_*`, `degrees`, `translate`, `scale`, `fliplr`, `flipud`, `mosaic`, `mixup`, `close_mosaic`). Validasi/test tanpa augmentasi |

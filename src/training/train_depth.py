@@ -1,8 +1,9 @@
 """Train a YOLO26-Depth model WITHOUT KD: YOLO26x-Depth teacher, YOLO26x-Depth+CBAM teacher, YOLO26n-Depth baseline.
 
 After training, the Ultralytics automatic (scale-only) calibration is replaced by the two-parameter
-log-affine calibration of models/depth/yolo26_depth.py fitted on ``calibration.split`` (default: ``val``, the
-internal validation split carved out of the official alltrain; the official test split is refused), which
+log-affine calibration of models/depth/yolo26_depth.py fitted on ``calibration.split`` (default ``val``: the
+official alltest in split mode ``proposal``, the internal validation split in mode ``internal``; ``test`` is
+refused), which
 is written into ``weights/best.pt`` and ``weights/last.pt`` and recorded in ``calibration.json``.
 
 Usage::

@@ -36,18 +36,23 @@ weight decay 0,0005, warmup 3 epoch, cosine, early stopping 25, AMP, seed 42, 8 
 
 Angka = bobot λ komponen (Pers. 3.10 proposal, tanpa suku ROI). Semua student juga memakai loss ground truth
 `DepthLoss26` (SILog + gradient matching) dengan bobot 1,0. Batch 16 / 8 dan lr 0,001 (n) / 0,0005 (x). Setelah
-training, setiap model dikalibrasi log-affine pada **validasi internal**. Komponen dapat diubah tanpa mengubah
+training, setiap model dikalibrasi log-affine pada split **val**. Komponen dapat diubah tanpa mengubah
 kode, misalnya `--set kd.boundary.enabled=false kd.relative.weight=0.2`.
 
 ## 3. Penggunaan split
 
 | Tahap | Split |
 |---|---|
-| Training | `train` (alltrain dikurangi validasi internal) |
-| Early stopping, `best.pt`, validasi per epoch | `val` (validasi internal) |
-| Kalibrasi log-affine | `val` |
-| Evaluasi untuk EWM-SAW | `val` (`outputs/evaluation/<task>/val/`) |
-| Evaluasi akhir model, jarak, navigasi | `test` (official alltest, 5.050) |
+| Tahap | Mode `proposal` (dipakai penelitian) | Mode `internal` (opsional) |
+|---|---|---|
+| Training | `train` = alltrain 5.285 | `train` = alltrain − validasi internal |
+| Early stopping, `best.pt`, validasi per epoch | `val` = alltest 5.050 | `val` internal |
+| Kalibrasi log-affine | `val` (5.050) | `val` internal |
+| Evaluasi untuk EWM-SAW dan pelaporan metrik model | `val` (5.050) | seleksi `val`, laporan `test` |
+| Evaluasi jarak / navigasi pada SUN RGB-D | `val` (5.050) | `test` |
+| Uji independen jarak / navigasi | data indoor sendiri (`measured`, `scenarios`) | idem |
+
+Deteksi dan depth selalu memakai split yang identik (satu set citra, `meta/splits.json`).
 
 ## 4. Struktur output
 
@@ -63,8 +68,8 @@ outputs/
 ├── depth/
 │   └── DEP-01 … DEP-09, TEACHER-CBAM/  sama + calibration_{best,last}.json
 ├── evaluation/
-│   ├── detection/{val,test}/        <model>/metrics.json, detection_results.{csv,json}, hardware.json
-│   └── depth/{val,test}/            <model>/{metrics.json, per_image.csv, samples/ (RGB|GT|pred|error), depth_maps/*.npy},
+│   ├── detection/val/ (+test)       <model>/metrics.json, detection_results.{csv,json}, hardware.json
+│   └── depth/val/ (+test)           <model>/{metrics.json, per_image.csv, samples/ (RGB|GT|pred|error), depth_maps/*.npy},
 │                                    depth_results.{csv,json}, hardware.json
 ├── selection/
 │   ├── detection_ewm/, depth_ewm/   decision_matrix.csv, ewm_proportions.csv, ewm_weights.csv

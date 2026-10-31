@@ -6,9 +6,10 @@ Checks performed on ``datasets/sunrgbd_yolo``:
 * RGB and depth resolution identical for every pair; depth is uint16 single-channel and decodes to metres;
 * no NaN/Inf, valid-depth ratio per image, depth values inside 0.001-10 m;
 * YOLO labels: 5 columns, class 0, normalised coordinates in [0, 1], boxes inside the image, sides >= 4 px;
-* no sample identity shared by any two of train / val / test, no recording group (``meta/manifest.csv``
-  ``group`` column) shared by train and val, and split sizes equal to the official partition:
-  ``train + val = 5,285`` (official alltrain) and ``test = 5,050`` (official alltest).
+* no sample identity shared by any two splits, split sizes equal to the official partition, and (mode
+  ``internal`` only) no recording group shared by train and val:
+  - mode ``proposal`` (``meta/splits.json``): ``train = 5,285`` (alltrain), ``val = 5,050`` (alltest);
+  - mode ``internal``: ``train + val = 5,285``, ``test = 5,050``.
 
 Outputs (``outputs/dataset``): ``integrity_report.json`` (with ``passed``), ``integrity_issues.csv``,
 ``objects_per_image.csv``, ``objects_per_image.png`` and annotated RGB|depth sample panels. Training scripts
@@ -55,8 +56,10 @@ def validate(cfg: dict) -> dict:
     def issue(split, sid, kind, msg):
         issues.append({"split": split, "sample_id": sid, "type": kind, "detail": msg})
 
+    mode = _split_mode(root)
+    present = [sp for sp in SPLITS if (root / "images" / sp).is_dir()]
     ids_by_split = {}
-    for split in SPLITS:
+    for split in present:
         imgs = _stems(root / "images" / split, IMG_EXT)
         deps = _stems(root / "depth" / split, {".png"})
         labs = _stems(root / "labels" / split, {".txt"})
@@ -142,6 +145,8 @@ def validate(cfg: dict) -> dict:
         }
 
     for a, b in (("train", "val"), ("train", "test"), ("val", "test")):
+        if a not in ids_by_split or b not in ids_by_split:
+            continue
         for sid in sorted(ids_by_split[a] & ids_by_split[b]):
             issue(f"{a}+{b}", sid, "leakage", "sample present in both splits")
     manifest = root / "meta" / "manifest.csv"
@@ -150,7 +155,7 @@ def validate(cfg: dict) -> dict:
         from src.utils.io import load_csv
 
         rows = load_csv(manifest)
-        if rows and "group" in rows[0]:
+        if mode == "internal" and rows and "group" in rows[0]:
             tg = {r["group"] for r in rows if r["split"] == "train"}
             vg = {r["group"] for r in rows if r["split"] == "val"}
             group_leaks = sorted(tg & vg)
@@ -160,18 +165,27 @@ def validate(cfg: dict) -> dict:
         issue("all", "-", "manifest", f"{manifest} missing: group leakage cannot be checked")
 
     def n(s):
-        return summary[s]["valid_pairs"]
+        return summary[s]["valid_pairs"] if s in summary else 0
 
     checks = []
-    if expected.get("train_official") is not None:
-        checks.append(n("train") + n("val") == expected["train_official"])
-    if expected.get("test") is not None:
-        checks.append(n("test") == expected["test"])
-    for s in SPLITS:  # optional per-split expectations
-        if expected.get(s) is not None and s != "test":
+    alltest = expected.get("alltest", expected.get("test"))
+    if mode == "proposal":
+        if expected.get("train_official") is not None:
+            checks.append(n("train") == expected["train_official"])
+        if alltest is not None:
+            checks.append(n("val") == alltest)
+        if "test" in summary:
+            issue("test", "-", "split", "mode proposal has no test split; stale images/test found (re-run prepare_sunrgbd)")
+    else:
+        if expected.get("train_official") is not None:
+            checks.append(n("train") + n("val") == expected["train_official"])
+        if alltest is not None:
+            checks.append(n("test") == alltest)
+    for s in ("train", "val"):  # optional explicit per-split expectations
+        if expected.get(s) is not None:
             checks.append(n(s) == expected[s])
     if n("val") == 0:
-        issue("val", "-", "split", "internal validation split is empty")
+        issue("val", "-", "split", "validation split is empty")
     count_ok = all(checks)
     strict = cfg["split"].get("strict_counts", True)
     passed = not issues and (count_ok or not strict)
@@ -181,6 +195,7 @@ def validate(cfg: dict) -> dict:
         "dataset_root": str(root),
         "passed": bool(passed),
         "strict_counts": strict,
+        "split_mode": mode,
         "split_counts_match_official": bool(count_ok),
         "group_leakage_train_val": len(group_leaks),
         "summary": summary,
@@ -199,6 +214,12 @@ def validate(cfg: dict) -> dict:
     if not passed:
         LOG.error("See %s for the %d issues found", report_dir / "integrity_issues.csv", len(issues))
     return report
+
+
+def _split_mode(root: Path) -> str:
+    """Split mode recorded by prepare_sunrgbd in ``meta/splits.json`` (``proposal`` if absent)."""
+    p = root / "meta" / "splits.json"
+    return str(load_json(p).get("mode", "proposal")) if p.is_file() else "proposal"
 
 
 def _plot_distribution(per_image: list[dict], path: Path) -> None:

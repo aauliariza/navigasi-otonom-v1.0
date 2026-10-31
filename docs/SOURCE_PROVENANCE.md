@@ -22,7 +22,7 @@ rujukan struktur (tidak disalin; ditulis ulang mengikuti paper dan kode resmi), 
 | Relative Depth KD | Zhang et al. (Neurocomputing 2026); Chen et al. (NeurIPS 2016) | — | — | **Adaptasi konsep** (Pers. 2.13–2.14), 4.096 pasangan, toleransi 0,03, sampler ber-seed |
 | Kalibrasi log-affine | Jun, Lee & Kim (JVCIR 2024) | ultralytics `models/yolo/depth/calibrate.py` (pembanding) | — | Kuadrat terkecil 2 parameter pada validasi internal |
 | Dekode depth SUN RGB-D | Song, Lichtenberg & Xiao (CVPR 2015); proposal Pers. 3.1–3.2 | ultralytics `cfg/datasets/depth-sunrgbd.yaml` (skrip download) | rumus `(d >> 3) \| (d << 13)` | Nilai > 10 m diinvalidasi, split resmi dipakai |
-| Split + validasi internal | Pembagian resmi SUN RGB-D (`allsplit.mat`) | SUNRGBDtoolbox | `traintestSUNRGBD/allsplit.mat` | Validasi internal per grup rekaman (implementasi repository ini) |
+| Split | Pembagian resmi SUN RGB-D (`allsplit.mat`) | SUNRGBDtoolbox | `traintestSUNRGBD/allsplit.mat` | Mode proposal: alltrain → train, alltest → val; mode internal opsional: validasi internal per grup rekaman (implementasi repository ini) |
 | EWM | Proposal Pers. 3.29–3.32; Linh, Son & Thao (ETASR 2025) | — | — | Implementasi rumus; kasus 0, konstan, NaN/Inf, negatif ditangani |
 | SAW | Proposal Pers. 3.27–3.33 | — | — | Normalisasi cost `min/x` (koreksi Pers. 3.28) |
 | Inner ROI & jarak objek | Proposal Pers. 3.11–3.19; Ali & Yu (Sensors 2026) | — | — | Koreksi Pers. 3.17 |

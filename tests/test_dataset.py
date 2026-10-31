@@ -93,13 +93,14 @@ def test_official_split_rejects_overlap(tmp_path):
 
 
 def test_prepare_and_validate_synthetic(synthetic_dataset):
+    """Default split mode 'proposal': alltrain -> train (6), alltest -> val (3), no test split."""
     rep, prep, root = synthetic_dataset["report"], synthetic_dataset["prep"], synthetic_dataset["root"]
-    assert rep["passed"] is True
-    pairs = prep["prepared_pairs"]
-    assert pairs["train"] + pairs["val"] == 6 and pairs["test"] == 3 and pairs["val"] >= 1
-    assert rep["summary"]["test"]["valid_pairs"] == 3 and rep["group_leakage_train_val"] == 0
+    assert rep["passed"] is True and rep["split_mode"] == "proposal"
+    assert prep["prepared_pairs"] == {"train": 6, "val": 3}
+    assert not (root / "images/test").exists()
+    assert "test" not in __import__("yaml").safe_load((synthetic_dataset["tmp"] / "data/detect.yaml").read_text())
     # same identity in images/, depth/ and labels/; class 0 only; depth in metres within range
-    for split in ("train", "val", "test"):
+    for split in ("train", "val"):
         stems = {p.stem for p in (root / "images" / split).glob("*.jpg")}
         assert stems == {p.stem for p in (root / "depth" / split).glob("*.png")} == {p.stem for p in (root / "labels" / split).glob("*.txt")}
         for s in stems:
@@ -107,12 +108,36 @@ def test_prepare_and_validate_synthetic(synthetic_dataset):
             assert np.all(lab[:, 0] == 0)
             d = load_metric_depth_png(root / "depth" / split / f"{s}.png")
             assert d[d > 0].min() >= 0.001 and d.max() <= 10.0
+    sets = {s: {p.stem for p in (root / "images" / s).glob("*")} for s in ("train", "val")}
+    assert not sets["train"] & sets["val"]
+    split = json.loads((root / "meta/splits.json").read_text())
+    assert split["mode"] == "proposal" and len(split["train"]) == 6 and len(split["val"]) == 3 and split["test"] == []
+
+
+def test_prepare_internal_mode(tmp_path):
+    """Optional split mode 'internal': alltrain -> train + grouped val, alltest -> test."""
+    from scripts_helpers import build_synthetic_dataset
+
+    d = build_synthetic_dataset(tmp_path, extra=["split.mode=internal"])
+    rep, pairs, root = d["report"], d["prep"]["prepared_pairs"], d["root"]
+    assert rep["passed"] is True and rep["split_mode"] == "internal" and rep["group_leakage_train_val"] == 0
+    assert pairs["train"] + pairs["val"] == 6 and pairs["test"] == 3 and pairs["val"] >= 1
     sets = {s: {p.stem for p in (root / "images" / s).glob("*")} for s in ("train", "val", "test")}
     assert not sets["train"] & sets["val"] and not sets["train"] & sets["test"] and not sets["val"] & sets["test"]
-    # the split file is stored and every SUN3D location group is entirely on one side
     split = json.loads((root / "meta/splits.json").read_text())
     for g in {split["groups"][s] for s in split["val"]}:
         assert not any(split["groups"][s] == g for s in split["train"])
+
+
+def test_proposal_mode_rejects_wrong_counts(synthetic_dataset, tmp_path):
+    import copy
+
+    from src.data.validate_dataset import validate
+    from src.utils.config import apply_overrides
+
+    cfg = apply_overrides(copy.deepcopy(synthetic_dataset["cfg"]), [f"output.report_dir={tmp_path / 'rep'}", "split.expected_counts.alltest=5050"])
+    rep = validate(cfg)
+    assert rep["passed"] is False and rep["split_counts_match_official"] is False
 
 
 def test_scene_group_id_rules():
@@ -151,7 +176,9 @@ def test_validation_detects_pairing_error(synthetic_dataset, tmp_path):
     root = tmp_path / "data"
     shutil.copytree(synthetic_dataset["root"], root)
     next((root / "depth" / "val").glob("*.png")).unlink()
-    cfg = apply_overrides(dict(synthetic_dataset["cfg"]), [f"output.root={root}", f"output.report_dir={tmp_path / 'rep'}"])
+    import copy
+
+    cfg = apply_overrides(copy.deepcopy(synthetic_dataset["cfg"]), [f"output.root={root}", f"output.report_dir={tmp_path / 'rep'}"])
     rep = validate(cfg)
     assert rep["passed"] is False
     assert rep["issues_by_type"]["pairing"] >= 1

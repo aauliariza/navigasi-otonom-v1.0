@@ -47,12 +47,12 @@ Satu perintah untuk seluruh urutan: `bash scripts/train_all_detection.sh train.d
 
 Satu perintah: `bash scripts/train_all_depth.sh train.device=0`.
 
-Setiap model depth dikalibrasi otomatis setelah training (log-affine pada validasi internal). Kalibrasi ulang tanpa
+Setiap model depth dikalibrasi otomatis setelah training (log-affine pada split `val`). Kalibrasi ulang tanpa
 training: `python -m src.training.train_depth --config <config> --calibrate-only`.
 
 ## 4. Isi folder eksperimen
 
-`weights/best.pt` (dipilih dari fitness validasi internal), `weights/last.pt`, `results.csv` (loss GT, setiap
+`weights/best.pt` (dipilih dari fitness pada split `val`), `weights/last.pt`, `results.csv` (loss GT, setiap
 komponen KD, metrik validasi per epoch), `results.png`, kurva PR/P/R/F1 dan confusion matrix (deteksi, dibuat
 Ultralytics), `loss_curves.png`, `args.yaml` (argumen Ultralytics), `config_used.yaml` (config penelitian setelah
 override), `model_*.yaml` (arsitektur yang dibangun), `metadata.json` (experiment ID, config, split + SHA-256,

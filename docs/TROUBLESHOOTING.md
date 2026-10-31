@@ -35,4 +35,4 @@
 | Resolusi webcam berbeda dari `--width/--height` | Kamera tidak mendukung resolusi itu | Normal; resolusi aktual dipakai dan dicatat di `webcam_session.json` |
 | `[predict_video] video tidak dapat dibuka` | Codec tidak didukung OpenCV | Konversi: `ffmpeg -i in.mov -c:v libx264 out.mp4` |
 | `GPU '0' diminta tetapi CUDA tidak tersedia` | Driver/PyTorch CPU-only | Inferensi berjalan di CPU (peringatan); pasang PyTorch CUDA untuk FPS penelitian |
-| `contains results of the TEST split` saat model selection | Hasil evaluasi `split=test` diberikan ke EWM-SAW | Evaluasi dengan `split=val` untuk seleksi; test hanya untuk laporan akhir |
+| `contains results of the TEST split` saat model selection | Hasil evaluasi `split=test` (mode internal) diberikan ke EWM-SAW | Evaluasi dengan `split=val` untuk seleksi; test hanya untuk laporan akhir |

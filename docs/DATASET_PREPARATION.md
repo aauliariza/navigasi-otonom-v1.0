@@ -13,13 +13,16 @@ unduh ketiga berkas lewat browser dan tempatkan sesuai kolom terakhir tabel di a
 
 ## 2. Preprocessing (`python -m src.data.prepare_sunrgbd`)
 
-1. **Split resmi + validasi internal.** `allsplit.mat`: `alltrain` (5.285) dan `alltest` (5.050). Path
-   dinormalisasi menjadi identitas scene (`kv1/NYUdata/NYU0001`); scene yang muncul di kedua split menyebabkan
-   error. `alltest` → **`test`** (hanya evaluasi akhir). Dari `alltrain`, ±10% diambil sebagai **`val`**
+1. **Split resmi.** `allsplit.mat`: `alltrain` (5.285) dan `alltest` (5.050). Path dinormalisasi menjadi
+   identitas scene (`kv1/NYUdata/NYU0001`); scene yang muncul di kedua split menyebabkan error.
+   **Mode `proposal` (default, dipakai penelitian, Tabel 3.6):** `alltrain` → **`train`** (5.285), `alltest` →
+   **`val`** (5.050), tanpa split test; sama untuk deteksi dan depth. Keterbatasannya: lihat keputusan S-0.
+   **Mode `internal` (opsional, `--set split.mode=internal`):** `alltest` → `test`; dari `alltrain`, ±10% diambil
+   sebagai `val`
    (validasi internal) per **grup rekaman** (`src/data/create_split.py`): seluruh frame satu lokasi SUN3D, atau
    satu sesi rekaman ber-timestamp, selalu berada di satu sisi; sisanya → **`train`**. Pengambilan per sensor dan
-   ber-seed 42. Hasilnya disimpan di `meta/splits.json` (daftar scene, grup, ukuran) dan dipakai semua eksperimen.
-   Catatan penamaan: proposal Tabel 3.6 menyebut 5.050 sampel itu "Validation"; di repository ini namanya `test`.
+   ber-seed 42. Pada kedua mode, daftar scene disimpan di `meta/splits.json` (beserta `mode`) dan dipakai semua
+   eksperimen.
 2. **Pairing.** Untuk setiap scene, berkas tunggal `image/*.jpg` dipasangkan dengan `depth_bfx/*.png` dari folder
    scene yang sama. Pemeriksaan yang dilakukan: berkas ada dan unik, dapat didekode, resolusi dan orientasi
    (H × W) identik, serta rasio piksel depth valid > 0.
@@ -41,9 +44,9 @@ Struktur hasil:
 
 ```
 datasets/sunrgbd_yolo/
-├── images/{train,val,test}/<id>.jpg   # dipakai bersama oleh deteksi dan depth
-├── labels/{train,val,test}/<id>.txt   # YOLO, kelas 0
-├── depth/{train,val,test}/<id>.png    # uint16 mm, 0 = invalid
+├── images/{train,val}/<id>.jpg       # dipakai bersama oleh deteksi dan depth (+ test pada mode internal)
+├── labels/{train,val}/<id>.txt       # YOLO, kelas 0
+├── depth/{train,val}/<id>.png        # uint16 mm, 0 = invalid
 ├── meta/manifest.csv, splits.json, preparation_report.json, preparation_failures.csv
 ├── sunrgbd_detect.yaml
 └── sunrgbd_depth.yaml
@@ -63,7 +66,7 @@ Laporan di `outputs/dataset/`:
 
 Isi laporan: jumlah RGB, depth, dan label per split; pasangan valid; jumlah box; distribusi objek per citra; data
 invalid; kesalahan pairing; kebocoran sampel antar train/val/test; kebocoran **grup rekaman** train/val
-(`group_leakage_train_val`); dan kecocokan jumlah dengan pembagian resmi (`train + val = 5.285`, `test = 5.050`). **Semua script training menolak berjalan** bila
+(`group_leakage_train_val`, mode internal); dan kecocokan jumlah dengan pembagian resmi (mode proposal: `train = 5.285`, `val = 5.050`; mode internal: `train + val = 5.285`, `test = 5.050`). **Semua script training menolak berjalan** bila
 `integrity_report.json` tidak ada atau `passed: false`.
 
 ## 4. Augmentasi

@@ -126,7 +126,7 @@ def test_evaluation_selection_integration(env):
     assert "KD" in sel["detection"]["model"] and "KD" in sel["depth"]["model"]
 
     sys_ov = [f"models.selected_models={tmp / 'sel/selected.json'}", f"output_dir={tmp / 'system'}", "detection.imgsz=96", "depth.imgsz=96", "detection.conf=0.001"]
-    assert run_system(["--source", str(tmp / "data/images/test"), "--set", *sys_ov]) == 0
+    assert run_system(["--source", str(tmp / "data/images/val"), "--set", *sys_ov]) == 0
     dec = load_csv(tmp / "system/decisions.csv")
     assert len(dec) == 3 and all(d["direction"] in {"FORWARD", "TURN_LEFT", "TURN_RIGHT", "STOP"} for d in dec)
     # image and video front-ends with the real selected checkpoints
@@ -134,9 +134,9 @@ def test_evaluation_selection_integration(env):
 
     from src.inference import predict_image, predict_video
 
-    assert predict_image.main(["--source", str(tmp / "data/images/test"), "--output", str(tmp / "inf/img"), "--set", *sys_ov]) == 0
+    assert predict_image.main(["--source", str(tmp / "data/images/val"), "--output", str(tmp / "inf/img"), "--set", *sys_ov]) == 0
     assert len(load_csv(tmp / "inf/img/decisions.csv")) == 3
-    frames = [cv2.imread(str(p)) for p in sorted((tmp / "data/images/test").glob("*.jpg"))]
+    frames = [cv2.imread(str(p)) for p in sorted((tmp / "data/images/val").glob("*.jpg"))]
     vw = cv2.VideoWriter(str(tmp / "clip.avi"), cv2.VideoWriter_fourcc(*"MJPG"), 5.0, (frames[0].shape[1], frames[0].shape[0]))
     for f in frames * 2:
         vw.write(f)
