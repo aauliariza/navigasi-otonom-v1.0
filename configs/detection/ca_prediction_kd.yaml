@@ -1,0 +1,19 @@
+_base_: _common.yaml
+experiment:
+  id: DET-09
+  description: "DET-09: YOLO26x+CA -> YOLO26n, Prediction KD"
+model:
+  arch: yolo26n.yaml
+  weights: yolo26n.pt
+  attention: none
+kd:
+  enabled: true
+  teacher_config: configs/detection/teacher_x_ca.yaml
+  feature: {enabled: false}
+  prediction:
+    enabled: true
+    weight: 1.0
+    cls_weight: 1.0
+    box_weight: 1.0
+    temperature: 1.0
+    branches: [one2many, one2one]

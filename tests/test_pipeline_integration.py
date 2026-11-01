@@ -47,7 +47,11 @@ def test_detection_training_kd_and_resume(env):
     tmp = env["tmp"]
     assert train_detection.main(["--config", "configs/detection/teacher_x_ca.yaml", "--set", *env["det"], "model.arch=yolo26n.yaml"]) == 0
     assert train_detection.main(["--config", "configs/detection/baseline.yaml", "--set", *env["det"]]) == 0
-    teacher = _best(tmp, "detection", "TEACHER-CA")
+    # DET-07: YOLO26n + CA trained without KD (attention on the light model itself)
+    assert train_detection.main(["--config", "configs/detection/student_n_ca.yaml", "--set", *env["det"]]) == 0
+    ca_n = load_ultralytics_ckpt(_best(tmp, "detection", "DET-07"))["model"]
+    assert type(ca_n.model[23]).__name__ == "CoordAtt" and type(ca_n.model[26]).__name__ == "Detect"
+    teacher = _best(tmp, "detection", "DET-06")
     kd_set = [*env["det"], f"kd.teacher_weights={teacher}", "train.epochs=2"]
 
     # interrupt after the first epoch's checkpoint, then resume
@@ -65,7 +69,7 @@ def test_detection_training_kd_and_resume(env):
 
             self.add_callback("on_fit_epoch_end", stop)
 
-    cfg = apply_overrides(load_config("configs/detection/ca_full_kd.yaml"), kd_set)
+    cfg = apply_overrides(load_config("configs/detection/ca_feature_prediction_kd.yaml"), kd_set)
     dts.DetectionKDModel.kd_config = {k: cfg["kd"][k] for k in ("feature", "prediction")}
     from models.detection.yolo26_detector import model_yaml_for
     from src.utils.checkpoint import experiment_dir
@@ -76,7 +80,7 @@ def test_detection_training_kd_and_resume(env):
         run_training(cfg, Interrupt, "detect", model_yaml_for(cfg["model"], "detect", run_dir), kd_cls=dts.DetectionKDModel)
     last = run_dir / "weights" / "last.pt"
     assert load_ultralytics_ckpt(last)["epoch"] == 0
-    assert train_detection_kd.main(["--config", "configs/detection/ca_full_kd.yaml", "--resume", "--set", *kd_set]) == 0
+    assert train_detection_kd.main(["--config", "configs/detection/ca_feature_prediction_kd.yaml", "--resume", "--set", *kd_set]) == 0
     best = load_ultralytics_ckpt(run_dir / "weights" / "best.pt")
     assert type(best["model"]).__name__ == "DetectionModel"  # student only, no teacher/projector
     lines = (run_dir / "results.csv").read_text().strip().splitlines()
@@ -92,14 +96,18 @@ def test_depth_training_kd_and_calibration(env):
     tmp = env["tmp"]
     assert train_depth.main(["--config", "configs/depth/teacher_x_cbam.yaml", "--set", *env["dep"], "model.arch=yolo26n-depth.yaml"]) == 0
     assert train_depth.main(["--config", "configs/depth/baseline.yaml", "--set", *env["dep"]]) == 0
-    teacher = _best(tmp, "depth", "TEACHER-CBAM")
+    # DEP-09: YOLO26n-Depth + CBAM trained without KD
+    assert train_depth.main(["--config", "configs/depth/student_n_cbam.yaml", "--set", *env["dep"]]) == 0
+    cb_n = load_ultralytics_ckpt(_best(tmp, "depth", "DEP-09"))
+    assert type(cb_n["model"].model[23]).__name__ == "CBAM" and cb_n["log_affine_calibration"]["split"] == "val"
+    teacher = _best(tmp, "depth", "DEP-08")
     assert train_depth_kd.main(["--config", "configs/depth/cbam_full_kd.yaml", "--set", *env["dep"], f"kd.teacher_weights={teacher}"]) == 0
-    ck = load_ultralytics_ckpt(_best(tmp, "depth", "DEP-09"))
+    ck = load_ultralytics_ckpt(_best(tmp, "depth", "DEP-14"))
     cal = ck["log_affine_calibration"]
     assert cal["split"] == "val" and math.isfinite(cal["a"]) and cal["a"] > 0
     head = ck["model"].model[-1]
     assert head.cal_a.item() == pytest.approx(cal["a"]) and head.cal_b.item() == pytest.approx(cal["b"])
-    header = (tmp / "runs/depth/DEP-09/results.csv").read_text().splitlines()[0]
+    header = (tmp / "runs/depth/DEP-14/results.csv").read_text().splitlines()[0]
     for c in ("kd_output", "kd_feature", "kd_boundary", "kd_relative"):
         assert f"train/{c}" in header
 
@@ -114,7 +122,7 @@ def test_evaluation_selection_integration(env):
     ov = f"experiment_overrides=[output.root={tmp / 'runs'}]"
     small = ["device=cpu", "imgsz=96", "benchmark.warmup=1", "benchmark.iters=2"]
     assert evaluate_detection.main(["--set", f"data_yaml={tmp / 'data/detect.yaml'}", f"output_dir={tmp / 'eval/det'}", "batch=3", ov, *small,
-                                    "models=[{name: YOLO26n, config: configs/detection/baseline.yaml}, {name: YOLO26n+FeatureKD, config: configs/detection/feature_kd.yaml}, {name: YOLO26n+Feat+PredKD(CA-teacher), config: configs/detection/ca_full_kd.yaml}]"]) == 0
+                                    "models=[{name: YOLO26n, config: configs/detection/baseline.yaml}, {name: YOLO26n+FeatureKD, config: configs/detection/feature_kd.yaml}, {name: YOLO26n+Feat+PredKD(CA-teacher), config: configs/detection/ca_feature_prediction_kd.yaml}]"]) == 0
     assert evaluate_depth.main(["--set", f"data_yaml={tmp / 'data/depth.yaml'}", f"output_dir={tmp / 'eval/dep'}", ov, *small,
                                 "models=[{name: YOLO26n-Depth, config: configs/depth/baseline.yaml}, {name: YOLO26n-Depth+FullKD(CBAM-teacher), config: configs/depth/cbam_full_kd.yaml}]"]) == 0
     rows = load_csv(tmp / "eval/dep/depth_results.csv")

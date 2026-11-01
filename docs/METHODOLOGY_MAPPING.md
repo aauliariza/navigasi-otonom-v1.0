@@ -53,8 +53,8 @@ Keputusan yang menyimpang dari proposal ada di [EXPERIMENT_DESIGN_DECISIONS.md](
 
 | Prompt | Implementasi |
 |---|---|
-| 5 (DET-01…06) | `configs/detection/*.yaml`, `scripts/train_all_detection.sh`, [EXPERIMENT_MATRIX.md](EXPERIMENT_MATRIX.md) |
-| 6 (DEP-01…09) | `configs/depth/*.yaml`, `scripts/train_all_depth.sh` |
+| 5 (DET-01…10) | `configs/detection/*.yaml`, `scripts/train_all_detection.sh`, [EXPERIMENT_MATRIX.md](EXPERIMENT_MATRIX.md) |
+| 6 (DEP-01…14) | `configs/depth/*.yaml`, `scripts/train_all_depth.sh` |
 | 7.1 pairing | `src/data/pair_rgb_depth.py` (identitas scene, bukan urutan berkas) |
 | 7.2 split | `split.mode: proposal` (train 5.285 / val 5.050, keputusan peneliti S-0) atau `internal` (`src/data/create_split.py`); `meta/splits.json`; cek jumlah dan kebocoran di `src/data/validate_dataset.py` |
 | 7.3 depth | `src/data/prepare_depth.py` |

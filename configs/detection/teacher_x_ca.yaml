@@ -1,11 +1,11 @@
 _base_: _common.yaml
 experiment:
-  id: TEACHER-CA
-  description: "Teacher pendukung eksperimen 5.1-5/6: YOLO26x + Coordinate Attention pada P3/P4/P5 (layer 23-25), tanpa KD"
+  id: DET-06
+  description: "DET-06: YOLO26x + Coordinate Attention (P3/P4/P5, layer 23-25), tanpa KD; teacher DET-08..10"
 model:
   arch: yolo26x.yaml
-  weights: yolo26x.pt       # layer 0-22 dan Detect head ditransfer; CoordAtt diinisialisasi acak
+  weights: yolo26x.pt
   attention: ca
   attention_args: {reduction: 32}
 train:
-  batch: 8
+  batch: 8                  # Tabel 3.7: YOLO26x batch 8

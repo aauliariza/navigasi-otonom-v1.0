@@ -1,7 +1,7 @@
 _base_: _common.yaml
 experiment:
-  id: TEACHER-CBAM
-  description: "Teacher pendukung eksperimen 5.2-8/9: YOLO26x-Depth + CBAM pada P3/P4/P5 (layer 23-25), tanpa KD"
+  id: DEP-08
+  description: "DEP-08: YOLO26x-Depth + CBAM (P3/P4/P5, layer 23-25), tanpa KD; teacher DEP-10..14"
 model:
   arch: yolo26x-depth.yaml
   weights: yolo26x-depth.pt
@@ -9,4 +9,4 @@ model:
   attention_args: {reduction: 16, kernel_size: 7}
 train:
   batch: 8
-  lr0: 0.0005
+  lr0: 0.0005                 # Tabel 3.8: YOLO26x-Depth learning rate 0,0005

@@ -15,14 +15,16 @@ operating_point:          # P/R/F1 utama: deteksi yang dipakai saat inferensi (S
   match_iou: 0.5          # TP/FP/FN pada IoU 0,5 (Sub-bab 3.2.5.1)
 benchmark: {warmup: 50, iters: 300, half: false}
 output_dir: outputs/evaluation/detection/{split}
-# Alternatif EWM-SAW: DET-01 ... DET-06 (prompt 5.1)
+# Alternatif EWM-SAW: DET-01 ... DET-10 (seluruh daftar eksperimen deteksi)
 models:
-  - {name: "DET-01 YOLO26x",                      config: configs/detection/teacher_x.yaml}
-  - {name: "DET-02 YOLO26n",                      config: configs/detection/baseline.yaml}
-  - {name: "DET-03 YOLO26n FeatureKD",            config: configs/detection/feature_kd.yaml}
-  - {name: "DET-04 YOLO26n PredictionKD",         config: configs/detection/prediction_kd.yaml}
-  - {name: "DET-05 YOLO26n PredKD (CA-teacher)",  config: configs/detection/ca_kd.yaml}
-  - {name: "DET-06 YOLO26n Feat+PredKD (CA-teacher)", config: configs/detection/ca_full_kd.yaml}
-# Teacher CA dievaluasi sebagai informasi tambahan (perubahan parameter/FLOPs teacher), bukan alternatif EWM-SAW
-extra_models:
-  - {name: "TEACHER-CA YOLO26x+CA",              config: configs/detection/teacher_x_ca.yaml}
+  - {name: "DET-01 YOLO26x",                               config: configs/detection/teacher_x.yaml}
+  - {name: "DET-02 YOLO26n",                               config: configs/detection/baseline.yaml}
+  - {name: "DET-03 YOLO26n FeatureKD",                     config: configs/detection/feature_kd.yaml}
+  - {name: "DET-04 YOLO26n PredictionKD",                  config: configs/detection/prediction_kd.yaml}
+  - {name: "DET-05 YOLO26n Feature+PredictionKD",          config: configs/detection/feature_prediction_kd.yaml}
+  - {name: "DET-06 YOLO26x+CA",                            config: configs/detection/teacher_x_ca.yaml}
+  - {name: "DET-07 YOLO26n+CA",                            config: configs/detection/student_n_ca.yaml}
+  - {name: "DET-08 YOLO26n FeatureKD (CA-teacher)",        config: configs/detection/ca_feature_kd.yaml}
+  - {name: "DET-09 YOLO26n PredictionKD (CA-teacher)",     config: configs/detection/ca_prediction_kd.yaml}
+  - {name: "DET-10 YOLO26n Feature+PredictionKD (CA-teacher)", config: configs/detection/ca_feature_prediction_kd.yaml}
+extra_models: []

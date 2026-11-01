@@ -1,7 +1,7 @@
 _base_: _common.yaml
 experiment:
   id: DEP-07
-  description: "DEP-07: Full Depth KD = output + feature + boundary + relative"
+  description: "DEP-07: YOLO26x-Depth -> YOLO26n-Depth, Output + Feature + Boundary + Relative"
 model:
   arch: yolo26n-depth.yaml
   weights: yolo26n-depth.pt

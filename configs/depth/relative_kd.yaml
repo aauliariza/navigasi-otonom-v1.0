@@ -1,7 +1,7 @@
 _base_: _common.yaml
 experiment:
   id: DEP-06
-  description: "DEP-06: Relative Depth Distillation 4096 pasangan, tolerance 0.03 (Eq. 2.13-2.14)"
+  description: "DEP-06: YOLO26x-Depth -> YOLO26n-Depth, Relative Depth Distillation (4096 pasangan, toleransi 0,03)"
 model:
   arch: yolo26n-depth.yaml
   weights: yolo26n-depth.pt

@@ -4,7 +4,7 @@ experiment:
   description: "DEP-01: YOLO26x-Depth (teacher), tanpa KD"
 model:
   arch: yolo26x-depth.yaml
-  weights: yolo26x-depth.pt   # bobot pretrained resmi Ultralytics; null = dari nol
+  weights: yolo26x-depth.pt
   attention: none
 train:
   batch: 8

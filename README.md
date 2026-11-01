@@ -53,11 +53,12 @@ FORWARD / TURN_LEFT / TURN_RIGHT / STOP direkomendasikan pada antarmuka. **Tidak
 
 ```
 SUN RGB-D ─► preprocessing (pairing, depth meter, label YOLO, split train 5.285 / val 5.050)
-   ├─► DETEKSI: DET-01 YOLO26x teacher ─► DET-02 baseline, DET-03 Feature KD, DET-04 Prediction KD
-   │            TEACHER-CA (YOLO26x + Coordinate Attention) ─► DET-05 Prediction KD, DET-06 Feature + Prediction KD
-   └─► DEPTH:   DEP-01 YOLO26x-Depth teacher ─► DEP-02 baseline, DEP-03 Output, DEP-04 Feature, DEP-05 Boundary,
-                                               DEP-06 Relative, DEP-07 Full (4 komponen)
-                TEACHER-CBAM (YOLO26x-Depth + CBAM) ─► DEP-08 Output KD, DEP-09 Full KD
+   ├─► DETEKSI: DET-01 YOLO26x ─► DET-03 Feature KD, DET-04 Prediction KD, DET-05 Feature + Prediction KD
+   │            DET-06 YOLO26x + Coordinate Attention ─► DET-08 Feature KD, DET-09 Prediction KD, DET-10 Feature + Prediction KD
+   │            DET-02 YOLO26n, DET-07 YOLO26n + CA (tanpa KD)
+   └─► DEPTH:   DEP-01 YOLO26x-Depth ─► DEP-03 Output, DEP-04 Feature, DEP-05 Boundary, DEP-06 Relative, DEP-07 Full (4 komponen)
+                DEP-08 YOLO26x-Depth + CBAM ─► DEP-10 Output, DEP-11 Feature, DEP-12 Boundary, DEP-13 Relative, DEP-14 Full
+                DEP-02 YOLO26n-Depth, DEP-09 YOLO26n-Depth + CBAM (tanpa KD)
 evaluasi (val 5.050) ─► EWM + SAW per tugas ─► model terbaik (student KD)
 integrasi ─► alignment ─► inner ROI ─► filter valid ─► persentil 5–95 ─► median = jarak ─► ROI navigasi ─► 5 sektor
           ─► free/blocked ─► arah ─► antarmuka (gambar / video / webcam)
@@ -67,17 +68,22 @@ integrasi ─► alignment ─► inner ROI ─► filter valid ─► persentil
 
 | ID | Teacher | Metode | Student | | ID | Teacher | Metode KD | Student |
 |---|---|---|---|---|---|---|---|---|
-| DET-01 | YOLO26x | Tanpa KD | — | | DEP-01 | YOLO26x-Depth | Tanpa KD | — |
-| DET-02 | — | Baseline | YOLO26n | | DEP-02 | — | Baseline | YOLO26n-Depth |
+| DET-01 | — | YOLO26x (tanpa KD) | — | | DEP-01 | — | YOLO26x-Depth (tanpa KD) | — |
+| DET-02 | — | YOLO26n baseline | — | | DEP-02 | — | YOLO26n-Depth baseline | — |
 | DET-03 | YOLO26x | Feature KD | YOLO26n | | DEP-03 | YOLO26x-Depth | Depth Output | YOLO26n-Depth |
 | DET-04 | YOLO26x | Prediction KD | YOLO26n | | DEP-04 | YOLO26x-Depth | Feature | YOLO26n-Depth |
-| DET-05 | YOLO26x + CA | Prediction KD | YOLO26n | | DEP-05 | YOLO26x-Depth | Boundary | YOLO26n-Depth |
-| DET-06 | YOLO26x + CA | Feature + Prediction KD | YOLO26n | | DEP-06 | YOLO26x-Depth | Relative Depth | YOLO26n-Depth |
-| | | | | | DEP-07 | YOLO26x-Depth | Output + Feature + Boundary + Relative | YOLO26n-Depth |
-| | | | | | DEP-08 | YOLO26x-Depth + CBAM | Depth Output | YOLO26n-Depth |
-| | | | | | DEP-09 | YOLO26x-Depth + CBAM | Output + Feature + Boundary + Relative | YOLO26n-Depth |
+| DET-05 | YOLO26x | Feature + Prediction KD | YOLO26n | | DEP-05 | YOLO26x-Depth | Boundary | YOLO26n-Depth |
+| DET-06 | — | YOLO26x + CA (tanpa KD) | — | | DEP-06 | YOLO26x-Depth | Relative Depth | YOLO26n-Depth |
+| DET-07 | — | YOLO26n + CA (tanpa KD) | — | | DEP-07 | YOLO26x-Depth | Output + Feature + Boundary + Relative | YOLO26n-Depth |
+| DET-08 | YOLO26x + CA | Feature KD | YOLO26n | | DEP-08 | — | YOLO26x-Depth + CBAM (tanpa KD) | — |
+| DET-09 | YOLO26x + CA | Prediction KD | YOLO26n | | DEP-09 | — | YOLO26n-Depth + CBAM (tanpa KD) | — |
+| DET-10 | YOLO26x + CA | Feature + Prediction KD | YOLO26n | | DEP-10 | YOLO26x-Depth + CBAM | Depth Output | YOLO26n-Depth |
+|  |  |  |  | | DEP-11 | YOLO26x-Depth + CBAM | Feature | YOLO26n-Depth |
+|  |  |  |  | | DEP-12 | YOLO26x-Depth + CBAM | Boundary | YOLO26n-Depth |
+|  |  |  |  | | DEP-13 | YOLO26x-Depth + CBAM | Relative Depth | YOLO26n-Depth |
+|  |  |  |  | | DEP-14 | YOLO26x-Depth + CBAM | Output + Feature + Boundary + Relative | YOLO26n-Depth |
 
-Teacher ber-attention dilatih sebagai run pendukung `TEACHER-CA` dan `TEACHER-CBAM`. Object ROI Distillation
+Seluruh 10 + 14 model adalah alternatif EWM-SAW. Teacher KD = DET-01/DET-06 dan DEP-01/DEP-08. Object ROI Distillation
 dari draf BAB 3 **tidak** dipakai (keputusan X-2).
 
 **Teknologi:** Python 3.11 (diuji juga 3.13), PyTorch ≥ 2.4, Ultralytics 8.4.194 (YOLO26, task `depth`,
@@ -133,10 +139,10 @@ Semua perintah dijalankan dari **root repository**; nilai YAML dapat ditimpa den
 | `src/losses/relative_depth_loss.py` | Relative depth distillation: 4.096 pasangan/citra (sampler ber-seed), toleransi 0,03, ranking loss (Pers. 2.13–2.14) |
 | `src/losses/combined_loss.py` | Total KD depth berbobot (0,5/0,2/0,1/0,1), toggle per komponen dari YAML |
 | `src/training/trainer_utils.py` | Mixin trainer (model ber-attention, transfer bobot, log memori GPU, grafik loss), substitusi kelas KD, metadata eksperimen (split SHA-256, versi, hardware), gate dataset |
-| `src/training/train_detection.py` | CLI training tanpa KD: DET-01, DET-02, TEACHER-CA (`--resume` didukung) |
-| `src/training/train_detection_kd.py` | CLI training student deteksi dengan KD: DET-03…DET-06 |
-| `src/training/train_depth.py` | CLI training depth tanpa KD (DEP-01, DEP-02, TEACHER-CBAM) + kalibrasi log-affine pada `val`; `--calibrate-only` |
-| `src/training/train_depth_kd.py` | CLI training student depth dengan KD: DEP-03…DEP-09 (+ kalibrasi) |
+| `src/training/train_detection.py` | CLI training tanpa KD: DET-01, DET-02, DET-06, DET-07 (`--resume` didukung) |
+| `src/training/train_detection_kd.py` | CLI training student deteksi dengan KD: DET-03…05, DET-08…10 |
+| `src/training/train_depth.py` | CLI training depth tanpa KD (DEP-01, DEP-02, DEP-08, DEP-09) + kalibrasi log-affine pada `val`; `--calibrate-only` |
+| `src/training/train_depth_kd.py` | CLI training student depth dengan KD: DEP-03…07, DEP-10…14 (+ kalibrasi) |
 | `src/evaluation/metrics.py` | IoU, pencocokan TP/FP/FN, P/R/F1, akumulator metrik depth (δ1–3, AbsRel, SqRel, RMSE, RMSE log), MAE/RMSE/MAPE, akurasi navigasi |
 | `src/evaluation/benchmark.py` | FPS/latensi model-only, pipeline, end-to-end; memori GPU puncak; deskripsi hardware; CLI benchmark sistem |
 | `src/evaluation/evaluate_detection.py` | Evaluasi semua model deteksi pada `val`/`test`: mAP, P/R/F1 titik operasi, FPS, parameter, FLOPs, memori → CSV/JSON |
@@ -178,9 +184,9 @@ Semua perintah dijalankan dari **root repository**; nilai YAML dapat ditimpa den
 |---|---|
 | `configs/dataset/sunrgbd.yaml` | Path data mentah, sumber depth/box, rentang depth, mode split (`proposal` default), jumlah resmi, opsi validasi internal |
 | `configs/detection/_common.yaml` | Hyperparameter Tabel 3.7, augmentasi deteksi, parameter inferensi; diwarisi semua config deteksi |
-| `configs/detection/{teacher_x,baseline,feature_kd,prediction_kd,teacher_x_ca,ca_kd,ca_full_kd}.yaml` | DET-01, DET-02, DET-03, DET-04, TEACHER-CA, DET-05, DET-06 |
+| `configs/detection/{teacher_x,baseline,feature_kd,prediction_kd,feature_prediction_kd,teacher_x_ca,student_n_ca,ca_feature_kd,ca_prediction_kd,ca_feature_prediction_kd}.yaml` | DET-01 … DET-10 (urutan sama) |
 | `configs/depth/_common.yaml` | Hyperparameter Tabel 3.8, augmentasi depth, kalibrasi log-affine (split `val`) |
-| `configs/depth/{teacher_x,baseline,output_kd,feature_kd,boundary_kd,relative_kd,full_kd,teacher_x_cbam,cbam_kd,cbam_full_kd}.yaml` | DEP-01…DEP-07, TEACHER-CBAM, DEP-08, DEP-09 |
+| `configs/depth/{teacher_x,baseline,output_kd,feature_kd,boundary_kd,relative_kd,full_kd,teacher_x_cbam,student_n_cbam,cbam_output_kd,cbam_feature_kd,cbam_boundary_kd,cbam_relative_kd,cbam_full_kd}.yaml` | DEP-01 … DEP-14 (urutan sama) |
 | `configs/evaluation/detection.yaml`, `depth.yaml` | Daftar model, split, titik operasi/mode head, benchmark |
 | `configs/evaluation/selection.yaml` | Kriteria benefit/cost EWM-SAW, kebijakan data hilang, larangan split test |
 | `configs/evaluation/distance.yaml`, `navigation.yaml` | Sumber ground truth jarak/arah, split, output |
@@ -306,136 +312,165 @@ Alternatif satu langkah: `bash scripts/prepare_dataset.sh` (tambahkan `--downloa
 
 ## 5. Training deteksi objek
 
-Rincian input/output per langkah: [docs/TRAINING_GUIDE.md](docs/TRAINING_GUIDE.md). Tambahkan `--set train.device=0`
-untuk GPU. Setiap eksperimen menulis ke `outputs/detection/<ID>/` (`weights/best.pt`, `weights/last.pt`,
-`results.csv`, kurva, `metadata.json`, dll.).
+Rincian input/output: [docs/TRAINING_GUIDE.md](docs/TRAINING_GUIDE.md). Tambahkan `--set train.device=0` untuk GPU.
+Setiap eksperimen menulis ke `outputs/detection/<ID>/` (`weights/best.pt`, `weights/last.pt`, `results.csv`,
+kurva, `metadata.json`, dll.). Teacher (DET-01, DET-06) harus selesai sebelum student KD-nya.
 
-1. YOLO26x teacher (DET-01):
+1. **DET-01** YOLO26x (teacher):
 
    ```bash
    python -m src.training.train_detection --config configs/detection/teacher_x.yaml
    ```
 
-2. Evaluasi teacher (split val):
-
-   ```bash
-   python -m src.evaluation.evaluate_detection --set "models=[{name: DET-01 YOLO26x, config: configs/detection/teacher_x.yaml}]"
-   ```
-
-3. YOLO26n baseline (DET-02):
+2. **DET-02** YOLO26n baseline:
 
    ```bash
    python -m src.training.train_detection --config configs/detection/baseline.yaml
    ```
 
-4. DET-03 Feature KD (membaca `outputs/detection/DET-01/weights/best.pt`):
+3. **DET-03** YOLO26x → YOLO26n, Feature KD (membaca DET-01):
 
    ```bash
    python -m src.training.train_detection_kd --config configs/detection/feature_kd.yaml
    ```
 
-5. DET-04 Prediction KD:
+4. **DET-04** YOLO26x → YOLO26n, Prediction KD:
 
    ```bash
    python -m src.training.train_detection_kd --config configs/detection/prediction_kd.yaml
    ```
 
-6. Teacher YOLO26x + Coordinate Attention (TEACHER-CA):
+5. **DET-05** YOLO26x → YOLO26n, Feature + Prediction KD:
+
+   ```bash
+   python -m src.training.train_detection_kd --config configs/detection/feature_prediction_kd.yaml
+   ```
+
+6. **DET-06** YOLO26x + Coordinate Attention (teacher DET-08…10):
 
    ```bash
    python -m src.training.train_detection --config configs/detection/teacher_x_ca.yaml
    ```
 
-7. DET-05 (teacher CA, Prediction KD):
+7. **DET-07** YOLO26n + Coordinate Attention (tanpa KD):
 
    ```bash
-   python -m src.training.train_detection_kd --config configs/detection/ca_kd.yaml
+   python -m src.training.train_detection --config configs/detection/student_n_ca.yaml
    ```
 
-8. DET-06 (teacher CA, Feature + Prediction KD):
+8. **DET-08** YOLO26x + CA → YOLO26n, Feature KD (membaca DET-06):
 
    ```bash
-   python -m src.training.train_detection_kd --config configs/detection/ca_full_kd.yaml
+   python -m src.training.train_detection_kd --config configs/detection/ca_feature_kd.yaml
    ```
 
-9. Evaluasi seluruh eksperimen: [§7](#7-evaluasi-dan-pemilihan-model).
+9. **DET-09** YOLO26x + CA → YOLO26n, Prediction KD:
 
-Semua langkah training sekaligus: `bash scripts/train_all_detection.sh train.device=0`. Resume: tambahkan `--resume`.
+   ```bash
+   python -m src.training.train_detection_kd --config configs/detection/ca_prediction_kd.yaml
+   ```
+
+10. **DET-10** YOLO26x + CA → YOLO26n, Feature + Prediction KD:
+
+    ```bash
+    python -m src.training.train_detection_kd --config configs/detection/ca_feature_prediction_kd.yaml
+    ```
+
+Evaluasi teacher sebelum melanjutkan (opsional):
+`python -m src.evaluation.evaluate_detection --set "models=[{name: DET-01 YOLO26x, config: configs/detection/teacher_x.yaml}]"`.
+Semua langkah sekaligus: `bash scripts/train_all_detection.sh train.device=0`. Resume: tambahkan `--resume`.
 
 ---
 
 ## 6. Training monocular depth estimation
 
 Setiap model depth dikalibrasi log-affine pada split `val` setelah training; checkpoint di
-`outputs/depth/<ID>/weights/best.pt` sudah menghasilkan depth metrik.
+`outputs/depth/<ID>/weights/best.pt` sudah menghasilkan depth metrik. Teacher (DEP-01, DEP-08) harus selesai
+sebelum student KD-nya.
 
-1. YOLO26x-Depth teacher (DEP-01):
+1. **DEP-01** YOLO26x-Depth (teacher):
 
    ```bash
    python -m src.training.train_depth --config configs/depth/teacher_x.yaml
    ```
 
-2. Evaluasi teacher:
-
-   ```bash
-   python -m src.evaluation.evaluate_depth --set "models=[{name: DEP-01 YOLO26x-Depth, config: configs/depth/teacher_x.yaml}]"
-   ```
-
-3. YOLO26n-Depth baseline (DEP-02):
+2. **DEP-02** YOLO26n-Depth baseline:
 
    ```bash
    python -m src.training.train_depth --config configs/depth/baseline.yaml
    ```
 
-4. DEP-03 Depth Output Distillation:
+3. **DEP-03** Depth Output Distillation (membaca DEP-01):
 
    ```bash
    python -m src.training.train_depth_kd --config configs/depth/output_kd.yaml
    ```
 
-5. DEP-04 Feature Distillation:
+4. **DEP-04** Feature Distillation:
 
    ```bash
    python -m src.training.train_depth_kd --config configs/depth/feature_kd.yaml
    ```
 
-6. DEP-05 Boundary Distillation:
+5. **DEP-05** Boundary Distillation:
 
    ```bash
    python -m src.training.train_depth_kd --config configs/depth/boundary_kd.yaml
    ```
 
-7. DEP-06 Relative Depth Distillation:
+6. **DEP-06** Relative Depth Distillation:
 
    ```bash
    python -m src.training.train_depth_kd --config configs/depth/relative_kd.yaml
    ```
 
-8. DEP-07 Full Depth KD:
+7. **DEP-07** Output + Feature + Boundary + Relative:
 
    ```bash
    python -m src.training.train_depth_kd --config configs/depth/full_kd.yaml
    ```
 
-9. Teacher YOLO26x-Depth + CBAM (TEACHER-CBAM):
+8. **DEP-08** YOLO26x-Depth + CBAM (teacher DEP-10…14):
 
    ```bash
    python -m src.training.train_depth --config configs/depth/teacher_x_cbam.yaml
    ```
 
-10. DEP-08 (teacher CBAM, Depth Output KD):
+9. **DEP-09** YOLO26n-Depth + CBAM (tanpa KD):
+
+   ```bash
+   python -m src.training.train_depth --config configs/depth/student_n_cbam.yaml
+   ```
+
+10. **DEP-10** teacher CBAM, Depth Output Distillation (membaca DEP-08):
 
     ```bash
-    python -m src.training.train_depth_kd --config configs/depth/cbam_kd.yaml
+    python -m src.training.train_depth_kd --config configs/depth/cbam_output_kd.yaml
     ```
 
-11. DEP-09 (teacher CBAM, Full Depth KD):
+11. **DEP-11** teacher CBAM, Feature Distillation:
+
+    ```bash
+    python -m src.training.train_depth_kd --config configs/depth/cbam_feature_kd.yaml
+    ```
+
+12. **DEP-12** teacher CBAM, Boundary Distillation:
+
+    ```bash
+    python -m src.training.train_depth_kd --config configs/depth/cbam_boundary_kd.yaml
+    ```
+
+13. **DEP-13** teacher CBAM, Relative Depth Distillation:
+
+    ```bash
+    python -m src.training.train_depth_kd --config configs/depth/cbam_relative_kd.yaml
+    ```
+
+14. **DEP-14** teacher CBAM, Output + Feature + Boundary + Relative:
 
     ```bash
     python -m src.training.train_depth_kd --config configs/depth/cbam_full_kd.yaml
     ```
-
-12. Evaluasi seluruh eksperimen: [§7](#7-evaluasi-dan-pemilihan-model).
 
 Semua sekaligus: `bash scripts/train_all_depth.sh train.device=0`.
 
@@ -555,8 +590,8 @@ Lalu buka http://127.0.0.1:7860. Hasil yang disimpan: `outputs/inference/interfa
 |---|---|---|---|
 | 1 | Environment | §3 | `.venv/`, test lulus |
 | 2 | Dataset | `bash scripts/prepare_dataset.sh` | `datasets/sunrgbd_yolo/`, `outputs/dataset/` |
-| 3–5 | Training teacher, baseline, KD deteksi | `bash scripts/train_all_detection.sh train.device=0` | `outputs/detection/{DET-01..06,TEACHER-CA}/` |
-| 3–5 | Training teacher, baseline, KD depth | `bash scripts/train_all_depth.sh train.device=0` | `outputs/depth/{DEP-01..09,TEACHER-CBAM}/` |
+| 3–5 | Training teacher, baseline, KD deteksi | `bash scripts/train_all_detection.sh train.device=0` | `outputs/detection/DET-01..10/` |
+| 3–5 | Training teacher, baseline, KD depth | `bash scripts/train_all_depth.sh train.device=0` | `outputs/depth/DEP-01..14/` |
 | 6–7 | Evaluasi (val 5.050) | `bash scripts/evaluate_all.sh device=0` | `outputs/evaluation/*/val/` |
 | 8–10 | EWM, SAW, pemilihan | `bash scripts/select_models.sh` | `outputs/selection/` |
 | 11–15 | Integrasi, jarak, navigasi | `bash scripts/run_integrated_system.sh datasets/sunrgbd_yolo/images/val <satu_citra_benchmark>` | `outputs/inference/images/`, `outputs/integration/` |
@@ -601,7 +636,7 @@ bash scripts/smoke_test.sh
 **Hasil di lingkungan pengembangan** (CPU Intel Xeon 2,1 GHz, 4 core, tanpa GPU; Python 3.13.18, torch 2.15.0,
 ultralytics 8.4.194, OpenCV 5.0.0):
 
-- `pytest tests/`: **101 test lulus** (96 unit/komponen + 5 integration end-to-end), mencakup: pairing, dekode
+- `pytest tests/`: **106 test lulus** (101 unit/komponen + 5 integration end-to-end), mencakup: pairing, dekode
   depth, konversi anotasi, validasi box, split mode proposal (5.285/5.050) dan mode internal ber-grup, model loading, forward teacher dan
   student, CA, CBAM, ekstraksi fitur, alignment fitur, loss KD deteksi (feature, prediction) dan depth (output,
   feature, boundary, relative) termasuk aliran gradien hanya ke student, metrik, EWM, SAW, penolakan split test,
@@ -610,8 +645,7 @@ ultralytics 8.4.194, OpenCV 5.0.0):
   terputus, resolusi berbeda), checkpoint hilang. Integration test: gate dataset → training teacher/baseline/KD
   (deteksi + depth) → interrupt + resume → kalibrasi pada `val` → evaluasi → EWM-SAW → integrasi → CLI gambar dan
   video dengan model nyata → evaluasi jarak dan navigasi.
-- `scripts/smoke_test.sh`: **lulus** (mode split proposal). 17 training (DET-01…06, TEACHER-CA, DEP-01…09,
-  TEACHER-CBAM; 1 epoch, imgsz 96, teacher memakai skala n agar cepat), evaluasi `val`, EWM-SAW, CLI gambar dan video, evaluasi jarak
+- `scripts/smoke_test.sh`: **lulus** (mode split proposal). 24 training (DET-01…10, DEP-01…14; 1 epoch, imgsz 96, teacher memakai skala n agar cepat), evaluasi `val`, EWM-SAW, CLI gambar dan video, evaluasi jarak
   dan navigasi, benchmark sistem, laporan per ID. Angkanya tidak bermakna ilmiah.
 
 **Belum dapat diverifikasi di lingkungan pengembangan** (perlu dijalankan peneliti):
@@ -634,13 +668,13 @@ embedded, tracking, SLAM, path planning, hysteresis, atau temporal smoothing.
 Ketidaksesuaian antar-sumber dan keputusan yang perlu dikonfirmasi pembimbing ada di
 [docs/EXPERIMENT_DESIGN_DECISIONS.md](docs/EXPERIMENT_DESIGN_DECISIONS.md). Yang terpenting untuk revisi proposal:
 
-- **X-1** Tabel 3.1 memuat 3 model per tugas; implementasi memuat 6 (deteksi) dan 9 (depth) alternatif.
+- **X-1** Tabel 3.1 memuat 3 model per tugas; implementasi memuat 10 (deteksi) dan 14 (depth) alternatif.
 - **X-2** Object ROI Distillation dihapus; Full KD = 4 komponen (Pers. 3.9–3.10 perlu direvisi).
 - **S-0** Split proposal train 5.285 / val 5.050 untuk semua model. Karena `val` dipakai untuk seleksi
   (early stopping, kalibrasi, EWM-SAW) sekaligus pelaporan, metrik model berpotensi sedikit optimistis; ini perlu
   ditulis sebagai keterbatasan di BAB 3. Uji independen: data indoor sendiri (RM 3–4).
 - **C-1** Kalibrasi log-affine di-fit pada split `val`.
-- **A-1/A-2** CA dan CBAM pada P3/P4/P5 teacher; DET-05 = Prediction KD, DEP-08 = Output KD.
+- **A-1/A-5** CA dan CBAM pada P3/P4/P5; dipasang pada teacher (DET-06, DEP-08) dan, sebagai pembanding tanpa KD, pada model ringan (DET-07, DEP-09). Student KD tetap YOLO26n / YOLO26n-Depth standar.
 - **K-1** Rumus dan bobot Prediction KD (tidak ada di proposal).
 - **D-6** Mode head YOLO26 (one-to-many + NMS IoU 0,45 sebagai default).
 - **H-5** Augmentasi zoom dimatikan untuk depth.

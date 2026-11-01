@@ -17,7 +17,7 @@ mengubah kode. Pemetaan persamaan proposal ke kode ada di [METHODOLOGY_MAPPING.m
 
 | # | Sumber A | Sumber B | Keputusan (berdasarkan hierarki) | Dampak pada proposal |
 |---|---|---|---|---|
-| X-1 | Proposal Tabel 3.1: 3 model per tugas | Prompt: DET-01…06 dan DEP-01…09 | Seluruh 6 + 9 eksperimen (plus 2 teacher ber-attention) diimplementasikan (A-1) | BAB 3 perlu diperluas: Tabel 3.1, 3.9–3.20 memuat 6/9 alternatif, bukan 3; `m` pada Pers. 3.30 menjadi 6 dan 9 |
+| X-1 | Proposal Tabel 3.1: 3 model per tugas | Daftar eksperimen peneliti: DET-01…10 dan DEP-01…14 | Seluruh 10 + 14 model diimplementasikan dan seluruhnya menjadi alternatif EWM-SAW (A-1, A-2, A-5) | BAB 3 perlu diperluas: Tabel 3.1, 3.9–3.20 memuat 10/14 alternatif, bukan 3; `m` pada Pers. 3.30 menjadi 10 dan 14 |
 | X-2 | Proposal Sub-bab 3.2.4.4: 5 komponen KD depth termasuk Object ROI (Pers. 3.10, λ_ROI = 0,2) | Prompt 6.1: 4 komponen, ROI dilarang | Object ROI Distillation **tidak** diimplementasikan; Full KD = output + feature + boundary + relative dengan bobot 0,5/0,2/0,1/0,1 dari Pers. 3.10 | Pers. 3.9–3.10 dan paragraf "lima komponen" (Sub-bab 3.2.4.4 dan 3.2.5.2) perlu direvisi menjadi empat komponen |
 | X-3 | Proposal Tabel 3.6: 5.050 = "Validation" | Prompt 7.2: 5.050 = test, validasi internal dari train | **Keputusan peneliti: split proposal** (train 5.285 / val 5.050) untuk semua model (S-0). Mode validasi internal tetap tersedia (`split.mode: internal`, S-1/S-2) | Tabel 3.6 tetap; keterbatasan bias seleksi perlu ditulis di BAB 3 |
 | X-4 | Proposal: CA/CBAM tidak disebut | Prompt 5.6 dan 6.9 | CA pada teacher YOLO26x, CBAM pada teacher YOLO26x-Depth, P3/P4/P5 (A-1) | Perlu sub-bab arsitektur teacher ber-attention dan rujukan Hou et al. (2021), Woo et al. (2018) |
@@ -33,12 +33,12 @@ mengubah kode. Pemetaan persamaan proposal ke kode ada di [METHODOLOGY_MAPPING.m
 SUN RGB-D (split.mode: proposal): alltrain 5.285 → train ; alltest 5.050 → val (tanpa split test terpisah)
   ├─ prepare_sunrgbd: pairing RGB-depth, dekode depth (m), valid mask, label YOLO 1 kelas, splits.json
   └─ validate_dataset: integrity gate (training ditolak bila gagal; jumlah 5.285 / 5.050, kebocoran sampel)
-Deteksi:  DET-01 YOLO26x ─┬─ DET-02 YOLO26n baseline
-                          ├─ DET-03 Feature KD ─ DET-04 Prediction KD
-          TEACHER-CA (YOLO26x+CA) ─┬─ DET-05 Prediction KD ─ DET-06 Feature + Prediction KD
-Depth:    DEP-01 YOLO26x-Depth ─┬─ DEP-02 YOLO26n-Depth baseline
-                                ├─ DEP-03 Output / DEP-04 Feature / DEP-05 Boundary / DEP-06 Relative / DEP-07 Full KD
-          TEACHER-CBAM (YOLO26x-Depth+CBAM) ─┬─ DEP-08 Output KD ─ DEP-09 Full KD
+Deteksi:  DET-01 YOLO26x ─┬─ DET-03 Feature KD ─ DET-04 Prediction KD ─ DET-05 Feature + Prediction KD
+          DET-06 YOLO26x+CA ─┬─ DET-08 Feature KD ─ DET-09 Prediction KD ─ DET-10 Feature + Prediction KD
+          DET-02 YOLO26n, DET-07 YOLO26n+CA (tanpa KD)
+Depth:    DEP-01 YOLO26x-Depth ─┬─ DEP-03 Output / DEP-04 Feature / DEP-05 Boundary / DEP-06 Relative / DEP-07 Full KD
+          DEP-08 YOLO26x-Depth+CBAM ─┬─ DEP-10 Output / DEP-11 Feature / DEP-12 Boundary / DEP-13 Relative / DEP-14 Full KD
+          DEP-02 YOLO26n-Depth, DEP-09 YOLO26n-Depth+CBAM (tanpa KD)
           (seluruh model depth: kalibrasi log-affine pada val setelah training)
 Evaluasi val → benchmark → EWM → SAW → student KD terpilih (deteksi + depth)
 Integrasi 1 citra RGB → alignment → inner ROI 60% → jarak (median) → 5 sektor → FORWARD/TURN_LEFT/TURN_RIGHT/STOP
@@ -70,19 +70,22 @@ Evaluasi jarak (MAE/RMSE/MAPE) dan akurasi navigasi (val SUN RGB-D / data indoor
 
   Nilai final akan diukur ulang oleh `evaluate_*` dengan `--include-extra`. Kebutuhan memori GPU teacher
   ber-attention tercatat di `gpu_memory.csv` setiap eksperimen.
-- **A-2 Jenis KD pada eksperimen "teacher + attention → student dengan KD".**
-  - **DET-05 (YOLO26x + CA → YOLO26n):** memakai **Prediction KD** sebagai KD dasar, sesuai prompt 5.1/5.6
-    ("Baseline prediction KD"). Satu-satunya perbedaan terhadap DET-04 adalah teacher ber-CA, sehingga efek CA
-    terisolasi. Perbedaan terhadap DET-06 adalah ketiadaan Feature KD. *(Revisi sesi ini: versi sebelumnya
-    repository memakai Feature KD untuk eksperimen ini; diganti agar sesuai daftar eksperimen prompt.)*
-  - **DEP-08 (YOLO26x-Depth + CBAM → YOLO26n-Depth):** memakai Depth Output Distillation saja (prompt 6.1).
-    Satu-satunya perbedaan terhadap DEP-03 adalah teacher ber-CBAM. DEP-09 memakai keempat komponen.
-
-  Kedua pilihan dapat diganti di `configs/detection/ca_kd.yaml` dan `configs/depth/cbam_kd.yaml`.
-- **A-4 Experiment ID.** Folder eksperimen memakai ID prompt: `outputs/detection/DET-01` … `DET-06`,
-  `outputs/depth/DEP-01` … `DEP-09`. Kedua teacher ber-attention adalah run pendukung yang dipakai bersama oleh
-  dua eksperimen, sehingga disimpan sebagai `outputs/detection/TEACHER-CA` dan `outputs/depth/TEACHER-CBAM`
-  (dievaluasi sebagai `extra_models`, tidak ikut EWM-SAW karena bukan alternatif pada daftar prompt).
+- **A-2 Kombinasi KD dengan teacher ber-attention (revisi: daftar eksperimen peneliti).** Setiap metode KD
+  dijalankan dua kali, dengan teacher biasa dan teacher ber-attention, sehingga efek attention pada teacher dapat
+  diisolasi per metode:
+  - Deteksi: Feature (DET-03 vs DET-08), Prediction (DET-04 vs DET-09), Feature + Prediction (DET-05 vs DET-10).
+  - Depth: Output (DEP-03 vs DEP-10), Feature (DEP-04 vs DEP-11), Boundary (DEP-05 vs DEP-12), Relative (DEP-06 vs
+    DEP-13), keempatnya (DEP-07 vs DEP-14).
+  Hyperparameter, bobot KD, dan student identik pada setiap pasangan; yang berbeda hanya teacher.
+- **A-4 Experiment ID.** Folder eksperimen memakai ID daftar eksperimen: `outputs/detection/DET-01` … `DET-10`,
+  `outputs/depth/DEP-01` … `DEP-14`. Teacher ber-attention (DET-06, DEP-08) adalah eksperimen penuh dan sekaligus
+  teacher KD; tidak ada lagi run pendukung terpisah (`TEACHER-CA`/`TEACHER-CBAM` dari versi sebelumnya).
+- **A-5 ⚠ perlu konfirmasi: attention pada model ringan tanpa KD (DET-07, DEP-09).** Atas daftar eksperimen
+  peneliti, YOLO26n + CA dan YOLO26n-Depth + CBAM dilatih tanpa KD dengan penempatan yang sama (P3/P4/P5, layer
+  23–25; bobot pretrained layer 0–22 dan head ditransfer, attention acak). Keduanya pembanding efek attention
+  langsung pada model ringan (bandingkan dengan DET-02 / DEP-02). Student pada seluruh eksperimen KD tetap
+  YOLO26n / YOLO26n-Depth standar (script KD menolak student ber-attention), sehingga parameter dan FLOPs student
+  KD identik dengan baseline. DET-07/DEP-09 memiliki sedikit parameter dan FLOPs tambahan yang terukur di evaluasi.
 - **A-3 Teacher dan student memakai satu kelas (`nc = 1`).** Detect head teacher dan student sama-sama
   menghasilkan skor satu kelas, sehingga Prediction KD dapat dilakukan anchor-per-anchor.
 

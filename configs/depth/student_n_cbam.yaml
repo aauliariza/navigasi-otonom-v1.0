@@ -1,0 +1,9 @@
+_base_: _common.yaml
+experiment:
+  id: DEP-09
+  description: "DEP-09: YOLO26n-Depth + CBAM (P3/P4/P5, layer 23-25), tanpa KD (pembanding efek CBAM pada model ringan)"
+model:
+  arch: yolo26n-depth.yaml
+  weights: yolo26n-depth.pt
+  attention: cbam
+  attention_args: {reduction: 16, kernel_size: 7}

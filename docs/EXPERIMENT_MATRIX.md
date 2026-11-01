@@ -1,43 +1,53 @@
 # Matriks Eksperimen
 
 Seluruh konfigurasi dapat dijalankan independen (setelah teacher-nya tersedia) dan menulis ke folder ID-nya sendiri
-(`outputs/<task>/<ID>/`), sehingga checkpoint tidak pernah saling menimpa.
+(`outputs/<task>/<ID>/`), sehingga checkpoint tidak pernah saling menimpa. Penomoran mengikuti daftar eksperimen
+peneliti: 10 model deteksi dan 14 model depth; seluruhnya adalah alternatif EWM-SAW.
 
-## 1. Deteksi objek (prompt 5.1; hyperparameter proposal Tabel 3.7)
+## 1. Deteksi objek (hyperparameter proposal Tabel 3.7; `configs/detection/`)
 
 | ID | Teacher | Metode | Student | Config | Script | Teacher checkpoint |
 |---|---|---|---|---|---|---|
-| DET-01 | — (YOLO26x dilatih) | Tanpa KD | — | `configs/detection/teacher_x.yaml` | `train_detection` | — |
+| DET-01 | — | YOLO26x (dilatih, tanpa KD) | — | `teacher_x.yaml` | `train_detection` | — |
 | DET-02 | — | Baseline tanpa KD | YOLO26n | `baseline.yaml` | `train_detection` | — |
-| DET-03 | YOLO26x (DET-01) | Feature KD (score-weighted L2, `dis = 6`, tap 16/19/22) | YOLO26n | `feature_kd.yaml` | `train_detection_kd` | `outputs/detection/DET-01/weights/best.pt` |
-| DET-04 | YOLO26x (DET-01) | Prediction KD (soft-label BCE + L1 box) | YOLO26n | `prediction_kd.yaml` | `train_detection_kd` | idem |
-| TEACHER-CA | — (YOLO26x + CA dilatih) | Tanpa KD | — | `teacher_x_ca.yaml` | `train_detection` | — |
-| DET-05 | YOLO26x + CA | Prediction KD (KD dasar) | YOLO26n | `ca_kd.yaml` | `train_detection_kd` | `outputs/detection/TEACHER-CA/weights/best.pt` |
-| DET-06 | YOLO26x + CA | Feature + Prediction KD | YOLO26n | `ca_full_kd.yaml` | `train_detection_kd` | idem |
+| DET-03 | YOLO26x (DET-01) | Feature KD | YOLO26n | `feature_kd.yaml` | `train_detection_kd` | `outputs/detection/DET-01/weights/best.pt` |
+| DET-04 | YOLO26x (DET-01) | Prediction KD | YOLO26n | `prediction_kd.yaml` | `train_detection_kd` | idem |
+| DET-05 | YOLO26x (DET-01) | Feature + Prediction KD | YOLO26n | `feature_prediction_kd.yaml` | `train_detection_kd` | idem |
+| DET-06 | — | YOLO26x + CA (dilatih, tanpa KD) | — | `teacher_x_ca.yaml` | `train_detection` | — |
+| DET-07 | — | YOLO26n + CA (dilatih, tanpa KD) | — | `student_n_ca.yaml` | `train_detection` | — |
+| DET-08 | YOLO26x + CA (DET-06) | Feature KD | YOLO26n | `ca_feature_kd.yaml` | `train_detection_kd` | `outputs/detection/DET-06/weights/best.pt` |
+| DET-09 | YOLO26x + CA (DET-06) | Prediction KD | YOLO26n | `ca_prediction_kd.yaml` | `train_detection_kd` | idem |
+| DET-10 | YOLO26x + CA (DET-06) | Feature + Prediction KD | YOLO26n | `ca_feature_prediction_kd.yaml` | `train_detection_kd` | idem |
 
+Feature KD = score-weighted L2 framework (`dis = 6`, tap 16/19/22; teacher CA: 23/24/25). Prediction KD =
+soft-label BCE kelas + L1 box berbobot confidence teacher. CA = Coordinate Attention pada P3/P4/P5 (layer 23–25).
 Hyperparameter bersama (`configs/detection/_common.yaml`): 100 epoch, input 640, AdamW, lr 0,001, lrf 0,01,
-weight decay 0,0005, warmup 3 epoch, cosine, early stopping 25, AMP, seed 42, 8 worker; batch 16 (YOLO26n) dan
-8 (YOLO26x / YOLO26x + CA). Inferensi: conf 0,25, NMS IoU 0,45 (head one-to-many), max 100 deteksi.
+weight decay 0,0005, warmup 3 epoch, cosine, early stopping 25, AMP, seed 42, 8 worker; batch 16 (YOLO26n,
+YOLO26n + CA) dan 8 (YOLO26x, YOLO26x + CA). Inferensi: conf 0,25, NMS IoU 0,45 (head one-to-many), max 100.
 
-## 2. Monocular depth estimation (prompt 6.1; hyperparameter proposal Tabel 3.8)
+## 2. Monocular depth estimation (hyperparameter proposal Tabel 3.8; `configs/depth/`)
 
 | ID | Teacher | output | feature | boundary | relative | Config | Teacher checkpoint |
 |---|---|---|---|---|---|---|---|
-| DEP-01 | — (YOLO26x-Depth dilatih) | | | | | `configs/depth/teacher_x.yaml` | — |
-| DEP-02 | — (baseline YOLO26n-Depth) | | | | | `baseline.yaml` | — |
-| DEP-03 | YOLO26x-Depth | 0,5 | | | | `output_kd.yaml` | `outputs/depth/DEP-01/weights/best.pt` |
-| DEP-04 | YOLO26x-Depth | | 0,2 | | | `feature_kd.yaml` | idem |
-| DEP-05 | YOLO26x-Depth | | | 0,1 | | `boundary_kd.yaml` | idem |
-| DEP-06 | YOLO26x-Depth | | | | 0,1 | `relative_kd.yaml` | idem |
+| DEP-01 | — (YOLO26x-Depth dilatih) |  |  |  |  | `teacher_x.yaml` | — |
+| DEP-02 | — (baseline YOLO26n-Depth) |  |  |  |  | `baseline.yaml` | — |
+| DEP-03 | YOLO26x-Depth (DEP-01) | 0,5 |  |  |  | `output_kd.yaml` | `outputs/depth/DEP-01/weights/best.pt` |
+| DEP-04 | YOLO26x-Depth |  | 0,2 |  |  | `feature_kd.yaml` | idem |
+| DEP-05 | YOLO26x-Depth |  |  | 0,1 |  | `boundary_kd.yaml` | idem |
+| DEP-06 | YOLO26x-Depth |  |  |  | 0,1 | `relative_kd.yaml` | idem |
 | DEP-07 | YOLO26x-Depth | 0,5 | 0,2 | 0,1 | 0,1 | `full_kd.yaml` | idem |
-| TEACHER-CBAM | — (YOLO26x-Depth + CBAM dilatih) | | | | | `teacher_x_cbam.yaml` | — |
-| DEP-08 | YOLO26x-Depth + CBAM | 0,5 | | | | `cbam_kd.yaml` | `outputs/depth/TEACHER-CBAM/weights/best.pt` |
-| DEP-09 | YOLO26x-Depth + CBAM | 0,5 | 0,2 | 0,1 | 0,1 | `cbam_full_kd.yaml` | idem |
+| DEP-08 | — (YOLO26x-Depth + CBAM dilatih) |  |  |  |  | `teacher_x_cbam.yaml` | — |
+| DEP-09 | — (YOLO26n-Depth + CBAM dilatih) |  |  |  |  | `student_n_cbam.yaml` | — |
+| DEP-10 | YOLO26x-Depth + CBAM (DEP-08) | 0,5 |  |  |  | `cbam_output_kd.yaml` | `outputs/depth/DEP-08/weights/best.pt` |
+| DEP-11 | YOLO26x-Depth + CBAM |  | 0,2 |  |  | `cbam_feature_kd.yaml` | idem |
+| DEP-12 | YOLO26x-Depth + CBAM |  |  | 0,1 |  | `cbam_boundary_kd.yaml` | idem |
+| DEP-13 | YOLO26x-Depth + CBAM |  |  |  | 0,1 | `cbam_relative_kd.yaml` | idem |
+| DEP-14 | YOLO26x-Depth + CBAM | 0,5 | 0,2 | 0,1 | 0,1 | `cbam_full_kd.yaml` | idem |
 
 Angka = bobot λ komponen (Pers. 3.10 proposal, tanpa suku ROI). Semua student juga memakai loss ground truth
-`DepthLoss26` (SILog + gradient matching) dengan bobot 1,0. Batch 16 / 8 dan lr 0,001 (n) / 0,0005 (x). Setelah
-training, setiap model dikalibrasi log-affine pada split **val**. Komponen dapat diubah tanpa mengubah
-kode, misalnya `--set kd.boundary.enabled=false kd.relative.weight=0.2`.
+`DepthLoss26` (SILog + gradient matching) dengan bobot 1,0. CBAM pada P3/P4/P5 (layer 23–25). Batch 16 / 8 dan lr
+0,001 (n) / 0,0005 (x). Setelah training, setiap model dikalibrasi log-affine pada split **val**. Komponen dapat
+diubah tanpa mengubah kode, misalnya `--set kd.boundary.enabled=false kd.relative.weight=0.2`.
 
 ## 3. Penggunaan split
 
@@ -60,13 +70,13 @@ Deteksi dan depth selalu memakai split yang identik (satu set citra, `meta/split
 outputs/
 ├── dataset/                         integrity_report.json, integrity_issues.csv, objects_per_image.*, samples/
 ├── detection/
-│   ├── DET-01 … DET-06, TEACHER-CA/ weights/{best,last}.pt, results.csv (loss GT+KD & metrik val per epoch),
+│   ├── DET-01 … DET-10/           weights/{best,last}.pt, results.csv (loss GT+KD & metrik val per epoch),
 │   │                                results.png, PR/F1/P/R curves, confusion_matrix*.png (Ultralytics), loss_curves.png,
 │   │                                args.yaml, config_used.yaml, model_*.yaml (arsitektur), metadata.json
 │   │                                (versi, hardware, git commit, split SHA-256, teacher SHA-256), gpu_memory.csv,
 │   │                                training_summary.json, evaluation/{val,test}/metrics.json
 ├── depth/
-│   └── DEP-01 … DEP-09, TEACHER-CBAM/  sama + calibration_{best,last}.json
+│   └── DEP-01 … DEP-14/           sama + calibration_{best,last}.json
 ├── evaluation/
 │   ├── detection/val/ (+test)       <model>/metrics.json, detection_results.{csv,json}, hardware.json
 │   └── depth/val/ (+test)           <model>/{metrics.json, per_image.csv, samples/ (RGB|GT|pred|error), depth_maps/*.npy},

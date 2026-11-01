@@ -1,14 +1,14 @@
 _base_: _common.yaml
 experiment:
-  id: DET-06
-  description: "DET-06: YOLO26x+CA -> YOLO26n, Feature KD + Prediction KD (L_total = L_det + L_feature + L_prediction)"
+  id: DET-05
+  description: "DET-05: YOLO26x -> YOLO26n, Feature KD + Prediction KD"
 model:
   arch: yolo26n.yaml
   weights: yolo26n.pt
   attention: none
 kd:
   enabled: true
-  teacher_config: configs/detection/teacher_x_ca.yaml
+  teacher_config: configs/detection/teacher_x.yaml
   feature: {enabled: true, weight: 6.0}
   prediction:
     enabled: true

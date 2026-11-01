@@ -11,15 +11,20 @@ num_visual_samples: 8      # panel RGB | GT | prediksi | error map
 save_predictions: 8        # jumlah depth map prediksi/GT yang disimpan sebagai .npy (0 = tidak ada)
 benchmark: {warmup: 50, iters: 300, half: false}
 output_dir: outputs/evaluation/depth/{split}
+# Alternatif EWM-SAW: DEP-01 ... DEP-14 (seluruh daftar eksperimen depth)
 models:
-  - {name: "DEP-01 YOLO26x-Depth",                     config: configs/depth/teacher_x.yaml}
-  - {name: "DEP-02 YOLO26n-Depth",                     config: configs/depth/baseline.yaml}
-  - {name: "DEP-03 YOLO26n-Depth OutputKD",            config: configs/depth/output_kd.yaml}
-  - {name: "DEP-04 YOLO26n-Depth FeatureKD",           config: configs/depth/feature_kd.yaml}
-  - {name: "DEP-05 YOLO26n-Depth BoundaryKD",          config: configs/depth/boundary_kd.yaml}
-  - {name: "DEP-06 YOLO26n-Depth RelativeKD",          config: configs/depth/relative_kd.yaml}
-  - {name: "DEP-07 YOLO26n-Depth FullKD",              config: configs/depth/full_kd.yaml}
-  - {name: "DEP-08 YOLO26n-Depth OutputKD (CBAM-teacher)", config: configs/depth/cbam_kd.yaml}
-  - {name: "DEP-09 YOLO26n-Depth FullKD (CBAM-teacher)",   config: configs/depth/cbam_full_kd.yaml}
-extra_models:
-  - {name: "TEACHER-CBAM YOLO26x-Depth+CBAM",           config: configs/depth/teacher_x_cbam.yaml}
+  - {name: "DEP-01 YOLO26x-Depth",                          config: configs/depth/teacher_x.yaml}
+  - {name: "DEP-02 YOLO26n-Depth",                          config: configs/depth/baseline.yaml}
+  - {name: "DEP-03 YOLO26n-Depth OutputKD",                 config: configs/depth/output_kd.yaml}
+  - {name: "DEP-04 YOLO26n-Depth FeatureKD",                config: configs/depth/feature_kd.yaml}
+  - {name: "DEP-05 YOLO26n-Depth BoundaryKD",               config: configs/depth/boundary_kd.yaml}
+  - {name: "DEP-06 YOLO26n-Depth RelativeKD",               config: configs/depth/relative_kd.yaml}
+  - {name: "DEP-07 YOLO26n-Depth FullKD",                   config: configs/depth/full_kd.yaml}
+  - {name: "DEP-08 YOLO26x-Depth+CBAM",                     config: configs/depth/teacher_x_cbam.yaml}
+  - {name: "DEP-09 YOLO26n-Depth+CBAM",                     config: configs/depth/student_n_cbam.yaml}
+  - {name: "DEP-10 YOLO26n-Depth OutputKD (CBAM-teacher)",  config: configs/depth/cbam_output_kd.yaml}
+  - {name: "DEP-11 YOLO26n-Depth FeatureKD (CBAM-teacher)", config: configs/depth/cbam_feature_kd.yaml}
+  - {name: "DEP-12 YOLO26n-Depth BoundaryKD (CBAM-teacher)", config: configs/depth/cbam_boundary_kd.yaml}
+  - {name: "DEP-13 YOLO26n-Depth RelativeKD (CBAM-teacher)", config: configs/depth/cbam_relative_kd.yaml}
+  - {name: "DEP-14 YOLO26n-Depth FullKD (CBAM-teacher)",    config: configs/depth/cbam_full_kd.yaml}
+extra_models: []

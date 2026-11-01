@@ -10,40 +10,47 @@ Teacher harus selesai lebih dulu: script KD membaca `outputs/<task>/<teacher-ID>
 berjalan bila berkas itu tidak ada, dan mencatat SHA-256-nya di `metadata.json` student.
 
 ```
-DET-01 ──► DET-03, DET-04            TEACHER-CA ──► DET-05, DET-06            DET-02 (mandiri)
-DEP-01 ──► DEP-03 … DEP-07           TEACHER-CBAM ──► DEP-08, DEP-09          DEP-02 (mandiri)
+DET-01 ──► DET-03, DET-04, DET-05            DET-06 (YOLO26x+CA) ──► DET-08, DET-09, DET-10
+DET-02, DET-07 (YOLO26n+CA): mandiri
+DEP-01 ──► DEP-03 … DEP-07                   DEP-08 (YOLO26x-Depth+CBAM) ──► DEP-10 … DEP-14
+DEP-02, DEP-09 (YOLO26n-Depth+CBAM): mandiri
 ```
 
 ## 2. Deteksi objek
 
-| Langkah | ID | Perintah | Input | Output utama |
+| Langkah | ID | Perintah | Input / teacher | Output |
 |---|---|---|---|---|
-| 1 | DET-01 | `python -m src.training.train_detection --config configs/detection/teacher_x.yaml --set train.device=0` | dataset, `yolo26x.pt` | `outputs/detection/DET-01/weights/best.pt` |
-| 2 | — | `python -m src.evaluation.evaluate_detection --set "models=[{name: DET-01 YOLO26x, config: configs/detection/teacher_x.yaml}]" device=0` | DET-01 `best.pt` | `outputs/evaluation/detection/val/` |
-| 3 | DET-02 | `python -m src.training.train_detection --config configs/detection/baseline.yaml --set train.device=0` | `yolo26n.pt` | `outputs/detection/DET-02/` |
-| 4 | DET-03 | `python -m src.training.train_detection_kd --config configs/detection/feature_kd.yaml --set train.device=0` | DET-01 | `outputs/detection/DET-03/` |
-| 5 | DET-04 | `python -m src.training.train_detection_kd --config configs/detection/prediction_kd.yaml --set train.device=0` | DET-01 | `outputs/detection/DET-04/` |
-| 6 | TEACHER-CA | `python -m src.training.train_detection --config configs/detection/teacher_x_ca.yaml --set train.device=0` | `yolo26x.pt` (layer 0–22 + head ditransfer, CA acak) | `outputs/detection/TEACHER-CA/` |
-| 7 | DET-05 | `python -m src.training.train_detection_kd --config configs/detection/ca_kd.yaml --set train.device=0` | TEACHER-CA | `outputs/detection/DET-05/` |
-| 8 | DET-06 | `python -m src.training.train_detection_kd --config configs/detection/ca_full_kd.yaml --set train.device=0` | TEACHER-CA | `outputs/detection/DET-06/` |
+| 1 | DET-01 | `python -m src.training.train_detection --config configs/detection/teacher_x.yaml --set train.device=0` | dataset, `yolo26x.pt` | `outputs/detection/DET-01/` |
+| 2 | DET-02 | `python -m src.training.train_detection --config configs/detection/baseline.yaml --set train.device=0` | `yolo26n.pt` | `outputs/detection/DET-02/` |
+| 3 | DET-03 | `python -m src.training.train_detection_kd --config configs/detection/feature_kd.yaml --set train.device=0` | DET-01 | `outputs/detection/DET-03/` |
+| 4 | DET-04 | `python -m src.training.train_detection_kd --config configs/detection/prediction_kd.yaml --set train.device=0` | DET-01 | `outputs/detection/DET-04/` |
+| 5 | DET-05 | `python -m src.training.train_detection_kd --config configs/detection/feature_prediction_kd.yaml --set train.device=0` | DET-01 | `outputs/detection/DET-05/` |
+| 6 | DET-06 | `python -m src.training.train_detection --config configs/detection/teacher_x_ca.yaml --set train.device=0` | `yolo26x.pt` (layer 0–22 + head ditransfer, CA acak) | `outputs/detection/DET-06/` |
+| 7 | DET-07 | `python -m src.training.train_detection --config configs/detection/student_n_ca.yaml --set train.device=0` | `yolo26n.pt` (layer 0–22 + head ditransfer, CA acak) | `outputs/detection/DET-07/` |
+| 8 | DET-08 | `python -m src.training.train_detection_kd --config configs/detection/ca_feature_kd.yaml --set train.device=0` | DET-06 | `outputs/detection/DET-08/` |
+| 9 | DET-09 | `python -m src.training.train_detection_kd --config configs/detection/ca_prediction_kd.yaml --set train.device=0` | DET-06 | `outputs/detection/DET-09/` |
+| 10 | DET-10 | `python -m src.training.train_detection_kd --config configs/detection/ca_feature_prediction_kd.yaml --set train.device=0` | DET-06 | `outputs/detection/DET-10/` |
 
 Satu perintah untuk seluruh urutan: `bash scripts/train_all_detection.sh train.device=0`.
 
 ## 3. Monocular depth estimation
 
-| Langkah | ID | Perintah | Input | Output utama |
+| Langkah | ID | Perintah | Input / teacher | Output |
 |---|---|---|---|---|
-| 1 | DEP-01 | `python -m src.training.train_depth --config configs/depth/teacher_x.yaml --set train.device=0` | `yolo26x-depth.pt` | `outputs/depth/DEP-01/weights/best.pt` (terkalibrasi) |
-| 2 | — | `python -m src.evaluation.evaluate_depth --set "models=[{name: DEP-01 YOLO26x-Depth, config: configs/depth/teacher_x.yaml}]" device=0` | DEP-01 | `outputs/evaluation/depth/val/` |
-| 3 | DEP-02 | `python -m src.training.train_depth --config configs/depth/baseline.yaml --set train.device=0` | `yolo26n-depth.pt` | `outputs/depth/DEP-02/` |
-| 4 | DEP-03 | `python -m src.training.train_depth_kd --config configs/depth/output_kd.yaml --set train.device=0` | DEP-01 | `outputs/depth/DEP-03/` |
-| 5 | DEP-04 | `python -m src.training.train_depth_kd --config configs/depth/feature_kd.yaml --set train.device=0` | DEP-01 | `outputs/depth/DEP-04/` |
-| 6 | DEP-05 | `python -m src.training.train_depth_kd --config configs/depth/boundary_kd.yaml --set train.device=0` | DEP-01 | `outputs/depth/DEP-05/` |
-| 7 | DEP-06 | `python -m src.training.train_depth_kd --config configs/depth/relative_kd.yaml --set train.device=0` | DEP-01 | `outputs/depth/DEP-06/` |
-| 8 | DEP-07 | `python -m src.training.train_depth_kd --config configs/depth/full_kd.yaml --set train.device=0` | DEP-01 | `outputs/depth/DEP-07/` |
-| 9 | TEACHER-CBAM | `python -m src.training.train_depth --config configs/depth/teacher_x_cbam.yaml --set train.device=0` | `yolo26x-depth.pt` | `outputs/depth/TEACHER-CBAM/` |
-| 10 | DEP-08 | `python -m src.training.train_depth_kd --config configs/depth/cbam_kd.yaml --set train.device=0` | TEACHER-CBAM | `outputs/depth/DEP-08/` |
-| 11 | DEP-09 | `python -m src.training.train_depth_kd --config configs/depth/cbam_full_kd.yaml --set train.device=0` | TEACHER-CBAM | `outputs/depth/DEP-09/` |
+| 1 | DEP-01 | `python -m src.training.train_depth --config configs/depth/teacher_x.yaml --set train.device=0` | `yolo26x-depth.pt` | `outputs/depth/DEP-01/` (terkalibrasi) |
+| 2 | DEP-02 | `python -m src.training.train_depth --config configs/depth/baseline.yaml --set train.device=0` | `yolo26n-depth.pt` | `outputs/depth/DEP-02/` (terkalibrasi) |
+| 3 | DEP-03 | `python -m src.training.train_depth_kd --config configs/depth/output_kd.yaml --set train.device=0` | DEP-01 | `outputs/depth/DEP-03/` (terkalibrasi) |
+| 4 | DEP-04 | `python -m src.training.train_depth_kd --config configs/depth/feature_kd.yaml --set train.device=0` | DEP-01 | `outputs/depth/DEP-04/` (terkalibrasi) |
+| 5 | DEP-05 | `python -m src.training.train_depth_kd --config configs/depth/boundary_kd.yaml --set train.device=0` | DEP-01 | `outputs/depth/DEP-05/` (terkalibrasi) |
+| 6 | DEP-06 | `python -m src.training.train_depth_kd --config configs/depth/relative_kd.yaml --set train.device=0` | DEP-01 | `outputs/depth/DEP-06/` (terkalibrasi) |
+| 7 | DEP-07 | `python -m src.training.train_depth_kd --config configs/depth/full_kd.yaml --set train.device=0` | DEP-01 | `outputs/depth/DEP-07/` (terkalibrasi) |
+| 8 | DEP-08 | `python -m src.training.train_depth --config configs/depth/teacher_x_cbam.yaml --set train.device=0` | `yolo26x-depth.pt` (CBAM acak) | `outputs/depth/DEP-08/` (terkalibrasi) |
+| 9 | DEP-09 | `python -m src.training.train_depth --config configs/depth/student_n_cbam.yaml --set train.device=0` | `yolo26n-depth.pt` (CBAM acak) | `outputs/depth/DEP-09/` (terkalibrasi) |
+| 10 | DEP-10 | `python -m src.training.train_depth_kd --config configs/depth/cbam_output_kd.yaml --set train.device=0` | DEP-08 | `outputs/depth/DEP-10/` (terkalibrasi) |
+| 11 | DEP-11 | `python -m src.training.train_depth_kd --config configs/depth/cbam_feature_kd.yaml --set train.device=0` | DEP-08 | `outputs/depth/DEP-11/` (terkalibrasi) |
+| 12 | DEP-12 | `python -m src.training.train_depth_kd --config configs/depth/cbam_boundary_kd.yaml --set train.device=0` | DEP-08 | `outputs/depth/DEP-12/` (terkalibrasi) |
+| 13 | DEP-13 | `python -m src.training.train_depth_kd --config configs/depth/cbam_relative_kd.yaml --set train.device=0` | DEP-08 | `outputs/depth/DEP-13/` (terkalibrasi) |
+| 14 | DEP-14 | `python -m src.training.train_depth_kd --config configs/depth/cbam_full_kd.yaml --set train.device=0` | DEP-08 | `outputs/depth/DEP-14/` (terkalibrasi) |
 
 Satu perintah: `bash scripts/train_all_depth.sh train.device=0`.
 
