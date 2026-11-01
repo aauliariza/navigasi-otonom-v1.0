@@ -4,6 +4,10 @@ Importing this package registers the custom attention modules with the Ultralyti
 also required to unpickle checkpoints of attention-augmented teachers.
 """
 
-from models.common.model_utils import register_custom_modules
+from src.utils.versions import check_ultralytics_version
+
+check_ultralytics_version()  # fail fast with a clear message on an unsupported Ultralytics release
+
+from models.common.model_utils import register_custom_modules  # noqa: E402
 
 register_custom_modules()

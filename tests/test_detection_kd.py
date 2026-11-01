@@ -78,3 +78,28 @@ def test_detection_kd_requires_a_term(det_pair):
     DetectionKDModel.kd_config = {"feature": {"enabled": False}, "prediction": {"enabled": False}}
     with pytest.raises(ValueError):
         DetectionKDModel(teacher_model=det_pair[0], student_model=det_pair[1])
+
+
+def test_ultralytics_version_guard():
+    """Releases older than 8.4.194 key distillation features by layer index (KeyError: 3) -> refused up front."""
+    import pytest
+
+    from src.utils.versions import check_ultralytics_version
+
+    assert check_ultralytics_version("8.4.194") == "8.4.194"
+    for v in ("8.4.138", "8.3.250", "9.0.0"):
+        with pytest.raises(RuntimeError, match="memerlukan"):
+            check_ultralytics_version(v)
+
+
+def test_teacher_version_mismatch_is_refused(tmp_path):
+    import pytest
+    import torch
+
+    from src.training.trainer_utils import check_teacher_version
+
+    p = tmp_path / "t.pt"
+    torch.save({"version": "8.4.138", "model": None}, p)
+    with pytest.raises(RuntimeError, match="8.4.138"):
+        check_teacher_version(p)
+    check_teacher_version(p, allow_mismatch=True)  # only a warning when explicitly allowed

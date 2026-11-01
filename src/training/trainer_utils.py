@@ -165,7 +165,26 @@ def teacher_checkpoint(cfg: dict) -> Path:
     else:
         tcfg = load_config(kd["teacher_config"])
         path = experiment_dir(tcfg) / "weights" / "best.pt"
-    return require_file(path, "Teacher checkpoint", f"Train the teacher first: {kd.get('teacher_config', '')}")
+    path = require_file(path, "Teacher checkpoint", f"Train the teacher first: {kd.get('teacher_config', '')}")
+    check_teacher_version(path, bool(kd.get("allow_version_mismatch", False)))
+    return path
+
+
+def check_teacher_version(path: Path, allow_mismatch: bool = False) -> None:
+    """Refuse a teacher trained with another Ultralytics release (experiments must share one version)."""
+    import ultralytics
+
+    from src.utils.checkpoint import load_ultralytics_ckpt
+    from src.utils.versions import checkpoint_ultralytics_version
+
+    tv = checkpoint_ultralytics_version(load_ultralytics_ckpt(path))
+    if tv and tv != ultralytics.__version__:
+        msg = (f"[training] Teacher {path} dilatih dengan Ultralytics {tv}, sedangkan versi terpasang {ultralytics.__version__}.\n"
+               f"  Solusi : latih ulang teacher dengan versi terpasang agar teacher dan student memakai versi yang sama, "
+               f"atau (tidak disarankan, harus dicatat) --set kd.allow_version_mismatch=true")
+        if not allow_mismatch:
+            raise RuntimeError(msg)
+        LOG.warning(msg)
 
 
 def dataset_split_record(cfg: dict) -> dict:

@@ -601,7 +601,7 @@ bash scripts/smoke_test.sh
 **Hasil di lingkungan pengembangan** (CPU Intel Xeon 2,1 GHz, 4 core, tanpa GPU; Python 3.13.18, torch 2.15.0,
 ultralytics 8.4.194, OpenCV 5.0.0):
 
-- `pytest tests/`: **99 test lulus** (94 unit/komponen + 5 integration end-to-end), mencakup: pairing, dekode
+- `pytest tests/`: **101 test lulus** (96 unit/komponen + 5 integration end-to-end), mencakup: pairing, dekode
   depth, konversi anotasi, validasi box, split mode proposal (5.285/5.050) dan mode internal ber-grup, model loading, forward teacher dan
   student, CA, CBAM, ekstraksi fitur, alignment fitur, loss KD deteksi (feature, prediction) dan depth (output,
   feature, boundary, relative) termasuk aliran gradien hanya ke student, metrik, EWM, SAW, penolakan split test,
