@@ -1,0 +1,9 @@
+# Skenario SCRATCH: sama dengan configs/detection/student_n_ca.yaml, kecuali bagian yang tertulis di bawah.
+_base_: ../../../../configs/detection/student_n_ca.yaml
+model:
+  weights: null          # tanpa bobot pretrained: bobot awal acak
+train:
+  epochs: 300
+  patience: 50
+output:
+  root: scenarios/scratch/outputs

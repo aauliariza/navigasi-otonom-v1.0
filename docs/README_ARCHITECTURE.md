@@ -30,8 +30,8 @@ dengan folder data `datasets/` yang tidak di-commit. Pemetaannya:
 | Struktur disarankan | Lokasi di repository ini |
 |---|---|
 | `configs/data/sunrgbd.yaml` | `configs/dataset/sunrgbd.yaml` |
-| `configs/detection/{teacher_yolo26x,student_yolo26n,kd_feature,kd_prediction,ca_prediction,ca_feature_prediction}.yaml` | `configs/detection/{teacher_x,baseline,feature_kd,prediction_kd,ca_kd,ca_full_kd}.yaml` (+ `teacher_x_ca.yaml`) |
-| `configs/depth/*.yaml` (9 berkas) | `configs/depth/{teacher_x,baseline,output_kd,feature_kd,boundary_kd,relative_kd,full_kd,cbam_kd,cbam_full_kd}.yaml` (+ `teacher_x_cbam.yaml`) |
+| `configs/detection/{teacher_yolo26x,student_yolo26n,kd_feature,kd_prediction,ca_prediction,ca_feature_prediction}.yaml` | `configs/detection/*.yaml`: 10 berkas DET-01…10 (lihat EXPERIMENT_MATRIX.md) |
+| `configs/depth/*.yaml` | `configs/depth/*.yaml`: 14 berkas DEP-01…14 |
 | `configs/evaluation/{detection_metrics,depth_metrics,saw_ewm}.yaml` | `configs/evaluation/{detection,depth,selection,distance,navigation}.yaml` |
 | `configs/navigation/navigation.yaml` | `configs/system/inference.yaml` (bagian `distance`, `fusion`, `navigation`) |
 | `datasets/scripts/*` | `src/data/{download_dataset,prepare_sunrgbd,prepare_depth,prepare_annotations,pair_rgb_depth,create_split,validate_dataset}.py` |
@@ -70,7 +70,10 @@ Backbone dan neck sama. Head `Depth` di layer 23 menerima input 16/19/22:
 - ConvTranspose ×2, menghasilkan log-depth pada ¼ resolusi input, di-clamp ke [−4, 5];
 - `depth = exp(cal_a · log d + cal_b)` saat eval.
 
-## Teacher ber-attention (`models/common/model_utils.py::attention_yaml`)
+## Model ber-attention (`models/common/model_utils.py::attention_yaml`)
+
+Dipakai oleh DET-06 (YOLO26x + CA), DET-07 (YOLO26n + CA), DEP-08 (YOLO26x-Depth + CBAM), dan DEP-09
+(YOLO26n-Depth + CBAM). Tabel berikut untuk skala x; skala n sama dengan kanal lebih kecil.
 
 | Layer | YOLO26x + CA | YOLO26x-Depth + CBAM |
 |---|---|---|

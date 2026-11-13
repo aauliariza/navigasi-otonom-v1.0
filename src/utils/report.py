@@ -3,7 +3,7 @@
 Every section is filled only from files written by the pipeline; a missing artefact is reported as
 "BELUM DIJALANKAN" (not run yet) and a missing metric of a listed experiment ID as ``NOT MEASURED``, never guessed.
 
-Sections 2-3 list every experiment ID of the prompt (DET-01..06, DEP-01..09) for the validation split (used by
+Sections 2-3 list every experiment ID of the prompt (DET-01..10, DEP-01..14) for the validation split (used by
 EWM-SAW) and the official test split (final evaluation) separately; the same tables are exported as
 ``experiment_summary_{detection,depth}_{val,test}.csv`` next to the report.
 
@@ -23,8 +23,8 @@ from src.utils.io import load_csv, load_json, save_csv
 
 NOT_RUN = "_BELUM DIJALANKAN — artefak tidak ditemukan._"
 NOT_MEASURED = "NOT MEASURED"
-DET_IDS = [f"DET-0{i}" for i in range(1, 7)] + ["TEACHER-CA"]
-DEP_IDS = [f"DEP-0{i}" for i in range(1, 10)] + ["TEACHER-CBAM"]
+DET_IDS = [f"DET-{i:02d}" for i in range(1, 11)]
+DEP_IDS = [f"DEP-{i:02d}" for i in range(1, 15)]
 DET_COLS = ["mAP50", "mAP50-95", "precision", "recall", "f1", "fps", "params", "gflops", "gpu_memory_gb"]
 DEP_COLS = ["delta1", "delta2", "delta3", "abs_rel", "sq_rel", "rmse", "rmse_log", "fps", "params", "gflops", "gpu_memory_gb"]
 
@@ -85,7 +85,7 @@ def build_report(root: Path, out_dir: Path | None = None) -> str:
         ("3. Evaluasi monocular depth estimation", "depth", "depth_results.csv", DEP_IDS, DEP_COLS),
     ):
         s += [f"## {title}", ""]
-        for split, label in (("val", "dasar EWM-SAW (mode proposal: alltest 5.050; mode internal: validasi internal)"),
+        for split, label in (("val", "dasar EWM-SAW (mode proposal: alltest 5.050; mode internal/merged: validasi internal per grup rekaman)"),
                              ("test", "official test, hanya pada split.mode=internal")):
             rows = experiment_table(root, fname, split, ids, cols)
             if out_dir is not None:

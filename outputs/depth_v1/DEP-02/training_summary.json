@@ -1,0 +1,8 @@
+{
+  "finished_at": "2026-11-06T02:39:44.277359+00:00",
+  "train_time_h": 2.348295009467337,
+  "save_dir": "/home/comvis/Aulia/navigasi-otonom-v1.0/outputs/depth/DEP-02",
+  "best": "/home/comvis/Aulia/navigasi-otonom-v1.0/outputs/depth/DEP-02/weights/best.pt",
+  "last": "/home/comvis/Aulia/navigasi-otonom-v1.0/outputs/depth/DEP-02/weights/last.pt",
+  "best_fitness": 0.82685
+}

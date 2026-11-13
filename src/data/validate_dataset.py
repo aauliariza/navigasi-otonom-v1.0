@@ -6,10 +6,11 @@ Checks performed on ``datasets/sunrgbd_yolo``:
 * RGB and depth resolution identical for every pair; depth is uint16 single-channel and decodes to metres;
 * no NaN/Inf, valid-depth ratio per image, depth values inside 0.001-10 m;
 * YOLO labels: 5 columns, class 0, normalised coordinates in [0, 1], boxes inside the image, sides >= 4 px;
-* no sample identity shared by any two splits, split sizes equal to the official partition, and (mode
-  ``internal`` only) no recording group shared by train and val:
+* no sample identity shared by any two splits, split sizes equal to the official partition, and (modes
+  ``internal`` / ``merged``) no recording group shared by train and val:
   - mode ``proposal`` (``meta/splits.json``): ``train = 5,285`` (alltrain), ``val = 5,050`` (alltest);
-  - mode ``internal``: ``train + val = 5,285``, ``test = 5,050``.
+  - mode ``internal``: ``train + val = 5,285``, ``test = 5,050``;
+  - mode ``merged``: ``train + val = 5,285 + 5,050``, no test split (external test data).
 
 Outputs (``outputs/dataset``): ``integrity_report.json`` (with ``passed``), ``integrity_issues.csv``,
 ``objects_per_image.csv``, ``objects_per_image.png`` and annotated RGB|depth sample panels. Training scripts
@@ -155,7 +156,7 @@ def validate(cfg: dict) -> dict:
         from src.utils.io import load_csv
 
         rows = load_csv(manifest)
-        if mode == "internal" and rows and "group" in rows[0]:
+        if mode in {"internal", "merged"} and rows and "group" in rows[0]:
             tg = {r["group"] for r in rows if r["split"] == "train"}
             vg = {r["group"] for r in rows if r["split"] == "val"}
             group_leaks = sorted(tg & vg)
@@ -176,6 +177,11 @@ def validate(cfg: dict) -> dict:
             checks.append(n("val") == alltest)
         if "test" in summary:
             issue("test", "-", "split", "mode proposal has no test split; stale images/test found (re-run prepare_sunrgbd)")
+    elif mode == "merged":
+        if expected.get("train_official") is not None and alltest is not None:
+            checks.append(n("train") + n("val") == expected["train_official"] + alltest)
+        if "test" in summary:
+            issue("test", "-", "split", "mode merged has no test split; stale images/test found (re-run prepare_sunrgbd)")
     else:
         if expected.get("train_official") is not None:
             checks.append(n("train") + n("val") == expected["train_official"])

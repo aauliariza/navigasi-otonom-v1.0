@@ -39,7 +39,9 @@ from src.utils.logger import get_logger
 
 LOG = get_logger("model_selection")
 TEACHER_PATTERN = re.compile(r"^YOLO26x", re.IGNORECASE)
-KD_STUDENT_ID = re.compile(r"^(DET-0[3-6]|DEP-0[3-9])$")  # experiment IDs of the KD students (prompt 5.1 / 6.1)
+# Experiment IDs of the KD students: DET-03..05, DET-08..10 and DEP-03..07, DEP-10..14 (DET-06/07 and DEP-08/09 are
+# attention models trained without KD; DET-01/02 and DEP-01/02 are the teacher and the baseline).
+KD_STUDENT_ID = re.compile(r"^(DET-0[3-5]|DET-0[89]|DET-10|DEP-0[3-7]|DEP-1[0-4])$")
 
 
 def is_kd_student(row: dict) -> bool:

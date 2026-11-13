@@ -1,0 +1,37 @@
+{
+  "experiment_id": "DET-06",
+  "description": "DET-06: YOLO26x + Coordinate Attention (P3/P4/P5, layer 23-25), tanpa KD; teacher DET-08..10",
+  "config_source": "/home/comvis/Aulia/navigasi-otonom-v1.0/configs/detection/_common.yaml",
+  "started_at": "2026-11-05T02:53:58.925212+00:00",
+  "git_commit": "fbab993c01efb541d1fb334002cf5728eac4580f",
+  "environment": {
+    "python": "3.10.19",
+    "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+    "torch": "2.12.0+cu130",
+    "ultralytics": "8.4.194",
+    "cuda_available": true,
+    "cuda_version": "13.0",
+    "cudnn": 92000,
+    "gpu": "NVIDIA GeForce RTX 5070",
+    "gpu_memory_gb": 12.346785792
+  },
+  "ultralytics_args": {
+    "model": "/home/comvis/Aulia/navigasi-otonom-v1.0/outputs/detection/DET-06/weights/last.pt",
+    "resume": "/home/comvis/Aulia/navigasi-otonom-v1.0/outputs/detection/DET-06/weights/last.pt",
+    "data": "/home/comvis/Aulia/navigasi-otonom-v1.0/datasets/sunrgbd_yolo/sunrgbd_detect.yaml"
+  },
+  "dataset_split": {
+    "data_yaml": "/home/comvis/Aulia/navigasi-otonom-v1.0/datasets/sunrgbd_yolo/sunrgbd_detect.yaml",
+    "splits_json": "/home/comvis/Aulia/navigasi-otonom-v1.0/datasets/sunrgbd_yolo/meta/splits.json",
+    "splits_sha256": "3ef38b5d84de71dd7eb3a6b72a93c6a6c82b223377ae017f4c961f6e7d12efa5",
+    "sizes": {
+      "train": 9294,
+      "val": 1041,
+      "test": 0
+    }
+  },
+  "loss_and_kd": {
+    "enabled": false
+  },
+  "calibration": null
+}

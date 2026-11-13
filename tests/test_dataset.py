@@ -129,6 +129,35 @@ def test_prepare_internal_mode(tmp_path):
         assert not any(split["groups"][s] == g for s in split["train"])
 
 
+def test_prepare_merged_mode(tmp_path):
+    """Split mode 'merged': alltrain + alltest pooled -> train + grouped val, no test split."""
+    from scripts_helpers import build_synthetic_dataset
+
+    d = build_synthetic_dataset(tmp_path, extra=["split.mode=merged", "split.internal_val.fraction=0.3"])
+    rep, pairs, root = d["report"], d["prep"]["prepared_pairs"], d["root"]
+    assert rep["passed"] is True and rep["split_mode"] == "merged" and rep["group_leakage_train_val"] == 0
+    assert pairs["train"] + pairs["val"] == 9 and pairs["val"] >= 1 and "test" not in pairs
+    assert not (root / "images/test").exists()
+    assert "test" not in __import__("yaml").safe_load((d["tmp"] / "data/detect.yaml").read_text())
+    split = json.loads((root / "meta/splits.json").read_text())
+    assert split["test"] == [] and not set(split["train"]) & set(split["val"])
+    for g in {split["groups"][s] for s in split["val"]}:
+        assert not any(split["groups"][s] == g for s in split["train"])
+
+
+def test_merged_mode_rejects_wrong_counts(tmp_path):
+    import copy
+
+    from scripts_helpers import build_synthetic_dataset
+    from src.data.validate_dataset import validate
+    from src.utils.config import apply_overrides
+
+    d = build_synthetic_dataset(tmp_path, extra=["split.mode=merged"])
+    cfg = apply_overrides(copy.deepcopy(d["cfg"]), [f"output.report_dir={tmp_path / 'rep'}", "split.expected_counts.alltest=5050"])
+    rep = validate(cfg)
+    assert rep["passed"] is False and rep["split_counts_match_official"] is False
+
+
 def test_proposal_mode_rejects_wrong_counts(synthetic_dataset, tmp_path):
     import copy
 

@@ -1,7 +1,7 @@
 _base_: _common.yaml
 experiment:
   id: DEP-03
-  description: "DEP-03: Depth Output Distillation (SmoothL1 log-depth, Eq. 2.9)"
+  description: "DEP-03: YOLO26x-Depth -> YOLO26n-Depth, Depth Output Distillation (SmoothL1 log-depth)"
 model:
   arch: yolo26n-depth.yaml
   weights: yolo26n-depth.pt

@@ -1,0 +1,58 @@
+{
+  "summary": {
+    "model": "DET-05 YOLO26n Feature+PredictionKD",
+    "weights": "/home/comvis/Aulia/navigasi-otonom-v1.0/outputs/detection/DET-05/weights/best.pt",
+    "detection_head": "one2many_nms",
+    "mAP50": 0.8029874301224853,
+    "mAP50-95": 0.5834840566791539,
+    "precision_maxf1": 0.7891815063260971,
+    "recall_maxf1": 0.7102245778887669,
+    "f1_maxf1": 0.7476241534681606,
+    "precision": 0.7275683487895941,
+    "recall": 0.7550306211723534,
+    "f1": 0.741045142296369,
+    "tp": 6041,
+    "fp": 2262,
+    "fn": 1960,
+    "fps": 409.82874629474816,
+    "latency_ms": 2.439594225337108,
+    "params": 2389735,
+    "gflops": 5.3741312,
+    "gpu_memory_gb": 0.084035584
+  },
+  "operating_point": {
+    "tp": 6041,
+    "fp": 2262,
+    "fn": 1960,
+    "precision": 0.7275683487895941,
+    "recall": 0.7550306211723534,
+    "f1": 0.741045142296369,
+    "images": 1041
+  },
+  "ultralytics_speed_ms": {
+    "preprocess": 0.2464634676327022,
+    "inference": 0.9158562444325798,
+    "loss": 0.0002088835310838637,
+    "postprocess": 0.3742908655892159
+  },
+  "benchmark": {
+    "latency_ms_mean": 2.439594225337108,
+    "latency_ms_std": 0.01935451923551617,
+    "latency_ms_median": 2.435514936223626,
+    "latency_ms_p95": 2.4771026335656643,
+    "fps": 409.82874629474816,
+    "iters": 300,
+    "warmup": 50,
+    "gpu_memory_peak_gb": 0.084035584,
+    "params_total": 2389735,
+    "params_trainable": 0,
+    "gflops": 5.3741312,
+    "flops_imgsz": 640,
+    "mode": "model_only",
+    "imgsz": 640,
+    "batch": 1,
+    "precision": "fp32",
+    "includes_preprocessing": false,
+    "includes_postprocessing": false
+  }
+}

@@ -73,3 +73,12 @@ Atas permintaan peneliti, seluruh model (deteksi dan depth) kini memakai split p
 `alltrain` → `train` (5.285), `alltest` → `val` (5.050), tanpa split test terpisah (`split.mode: proposal`,
 keputusan S-0). Konsekuensinya (early stopping, `best.pt`, kalibrasi, EWM-SAW, dan pelaporan memakai set yang
 sama) dicatat sebagai keterbatasan. Mode validasi internal per grup tetap tersedia (`split.mode: internal`).
+
+## Revisi: matriks eksperimen lengkap 10 deteksi + 14 depth
+
+Atas daftar eksperimen peneliti, matriks diperluas dan dinomori ulang: DET-01…10, DEP-01…14 (lihat
+`docs/EXPERIMENT_MATRIX.md`). Ditambahkan: DET-05 (Feature + Prediction KD, teacher biasa), DET-07 (YOLO26n + CA),
+DET-08 (teacher CA + Feature KD), DEP-09 (YOLO26n-Depth + CBAM), DEP-11/12/13 (teacher CBAM + Feature / Boundary /
+Relative). Teacher ber-attention kini eksperimen penuh (DET-06, DEP-08). Matriks dijaga oleh
+`tests/test_experiment_matrix.py`. Run yang dilatih dengan penomoran lama harus dilatih ulang atau dipindahkan ke
+folder ID baru sesuai konfigurasinya.

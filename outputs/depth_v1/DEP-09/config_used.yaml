@@ -1,0 +1,51 @@
+data:
+  yaml: datasets/sunrgbd_yolo/sunrgbd_depth.yaml
+  integrity_report: outputs/dataset/integrity_report.json
+  require_integrity: true
+output:
+  root: outputs
+  group: depth
+train:
+  epochs: 100
+  batch: 16
+  imgsz: 640
+  optimizer: AdamW
+  lr0: 0.001
+  lrf: 0.01
+  weight_decay: 0.0005
+  warmup_epochs: 3
+  cos_lr: true
+  patience: 25
+  amp: true
+  seed: 42
+  deterministic: true
+  workers: 8
+  plots: true
+  hsv_h: 0.015
+  hsv_s: 0.7
+  hsv_v: 0.4
+  fliplr: 0.5
+  flipud: 0.0
+  translate: 0.1
+  scale: 0.0
+  degrees: 0.0
+  shear: 0.0
+  perspective: 0.0
+calibration:
+  enabled: true
+  split: val
+  max_images: 1000
+kd:
+  enabled: false
+_source_: /home/comvis/Aulia/navigasi-otonom-v1.0/configs/depth/_common.yaml
+experiment:
+  id: DEP-09
+  description: 'DEP-09: YOLO26n-Depth + CBAM (P3/P4/P5, layer 23-25), tanpa KD (pembanding
+    efek CBAM pada model ringan)'
+model:
+  arch: yolo26n-depth.yaml
+  weights: yolo26n-depth.pt
+  attention: cbam
+  attention_args:
+    reduction: 16
+    kernel_size: 7

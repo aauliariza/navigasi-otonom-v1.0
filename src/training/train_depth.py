@@ -2,7 +2,7 @@
 
 After training, the Ultralytics automatic (scale-only) calibration is replaced by the two-parameter
 log-affine calibration of models/depth/yolo26_depth.py fitted on ``calibration.split`` (default ``val``: the
-official alltest in split mode ``proposal``, the internal validation split in mode ``internal``; ``test`` is
+official alltest in split mode ``proposal``, the internal validation split in modes ``internal``/``merged``; ``test`` is
 refused), which
 is written into ``weights/best.pt`` and ``weights/last.pt`` and recorded in ``calibration.json``.
 
@@ -23,7 +23,7 @@ from ultralytics.models.yolo.detect import DetectionTrainer
 from ultralytics.utils import RANK
 
 import models  # noqa: F401
-from models.depth.yolo26_depth import calibrate_checkpoint
+from models.depth.yolo26_depth import calibrate_checkpoint, depth_letterbox_transform
 from models.detection.yolo26_detector import model_yaml_for
 from src.training.trainer_utils import LOG, ResearchTrainerMixin, run_training
 from src.utils.checkpoint import experiment_dir
@@ -62,7 +62,24 @@ def load_json_yaml(path: Path) -> dict:
 
 
 class ResearchDepthTrainer(ResearchTrainerMixin, DepthTrainer):
-    """Ultralytics DepthTrainer + attention-aware model building + research log-affine calibration."""
+    """Ultralytics DepthTrainer + attention-aware model building + research log-affine calibration.
+
+    The validation set is letterboxed like the training set (keputusan H-7) instead of the Ultralytics default
+    stretch, so best.pt selection and early stopping see the same geometry as training, calibration and inference.
+    """
+
+    def build_dataset(self, img_path: str, mode: str = "train", batch: int | None = None):
+        """Ultralytics depth dataset; for ``val`` the stretch transform is replaced by a depth-aware letterbox."""
+        from ultralytics.data.augment import LetterBox
+
+        dataset = super().build_dataset(img_path, mode, batch)
+        if mode != "train":
+            t = dataset.transforms.transforms
+            idx = [i for i, tf in enumerate(t) if isinstance(tf, LetterBox)]
+            if len(idx) != 1:
+                raise RuntimeError(f"Expected one LetterBox in the depth val transforms, found {len(idx)}")
+            t[idx[0]] = depth_letterbox_transform(int(self.args.imgsz))
+        return dataset
 
     def final_eval(self) -> None:
         """Standard final validation of best.pt, then the research calibration (no validation-split fitting)."""

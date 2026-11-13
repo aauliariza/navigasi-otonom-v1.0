@@ -36,3 +36,5 @@
 | `[predict_video] video tidak dapat dibuka` | Codec tidak didukung OpenCV | Konversi: `ffmpeg -i in.mov -c:v libx264 out.mp4` |
 | `GPU '0' diminta tetapi CUDA tidak tersedia` | Driver/PyTorch CPU-only | Inferensi berjalan di CPU (peringatan); pasang PyTorch CUDA untuk FPS penelitian |
 | `contains results of the TEST split` saat model selection | Hasil evaluasi `split=test` (mode internal) diberikan ke EWM-SAW | Evaluasi dengan `split=val` untuk seleksi; test hanya untuk laporan akhir |
+| `KeyError: 3` di `feature_kd` (`detection_teacher_student.py`) | Ultralytics lebih lama dari 8.4.194 (mis. 8.4.138) menyimpan fitur KD dengan kunci nomor layer | `pip install "ultralytics==8.4.194"`; repository kini menolak versi lama sejak awal (`src/utils/versions.py`) |
+| `[training] Teacher ... dilatih dengan Ultralytics X` | Teacher dilatih dengan versi Ultralytics lain | Latih ulang teacher dengan versi terpasang agar semua eksperimen memakai versi yang sama |

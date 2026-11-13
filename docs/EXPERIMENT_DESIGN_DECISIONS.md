@@ -17,7 +17,7 @@ mengubah kode. Pemetaan persamaan proposal ke kode ada di [METHODOLOGY_MAPPING.m
 
 | # | Sumber A | Sumber B | Keputusan (berdasarkan hierarki) | Dampak pada proposal |
 |---|---|---|---|---|
-| X-1 | Proposal Tabel 3.1: 3 model per tugas | Prompt: DET-01…06 dan DEP-01…09 | Seluruh 6 + 9 eksperimen (plus 2 teacher ber-attention) diimplementasikan (A-1) | BAB 3 perlu diperluas: Tabel 3.1, 3.9–3.20 memuat 6/9 alternatif, bukan 3; `m` pada Pers. 3.30 menjadi 6 dan 9 |
+| X-1 | Proposal Tabel 3.1: 3 model per tugas | Daftar eksperimen peneliti: DET-01…10 dan DEP-01…14 | Seluruh 10 + 14 model diimplementasikan dan seluruhnya menjadi alternatif EWM-SAW (A-1, A-2, A-5) | BAB 3 perlu diperluas: Tabel 3.1, 3.9–3.20 memuat 10/14 alternatif, bukan 3; `m` pada Pers. 3.30 menjadi 10 dan 14 |
 | X-2 | Proposal Sub-bab 3.2.4.4: 5 komponen KD depth termasuk Object ROI (Pers. 3.10, λ_ROI = 0,2) | Prompt 6.1: 4 komponen, ROI dilarang | Object ROI Distillation **tidak** diimplementasikan; Full KD = output + feature + boundary + relative dengan bobot 0,5/0,2/0,1/0,1 dari Pers. 3.10 | Pers. 3.9–3.10 dan paragraf "lima komponen" (Sub-bab 3.2.4.4 dan 3.2.5.2) perlu direvisi menjadi empat komponen |
 | X-3 | Proposal Tabel 3.6: 5.050 = "Validation" | Prompt 7.2: 5.050 = test, validasi internal dari train | **Keputusan peneliti: split proposal** (train 5.285 / val 5.050) untuk semua model (S-0). Mode validasi internal tetap tersedia (`split.mode: internal`, S-1/S-2) | Tabel 3.6 tetap; keterbatasan bias seleksi perlu ditulis di BAB 3 |
 | X-4 | Proposal: CA/CBAM tidak disebut | Prompt 5.6 dan 6.9 | CA pada teacher YOLO26x, CBAM pada teacher YOLO26x-Depth, P3/P4/P5 (A-1) | Perlu sub-bab arsitektur teacher ber-attention dan rujukan Hou et al. (2021), Woo et al. (2018) |
@@ -33,12 +33,12 @@ mengubah kode. Pemetaan persamaan proposal ke kode ada di [METHODOLOGY_MAPPING.m
 SUN RGB-D (split.mode: proposal): alltrain 5.285 → train ; alltest 5.050 → val (tanpa split test terpisah)
   ├─ prepare_sunrgbd: pairing RGB-depth, dekode depth (m), valid mask, label YOLO 1 kelas, splits.json
   └─ validate_dataset: integrity gate (training ditolak bila gagal; jumlah 5.285 / 5.050, kebocoran sampel)
-Deteksi:  DET-01 YOLO26x ─┬─ DET-02 YOLO26n baseline
-                          ├─ DET-03 Feature KD ─ DET-04 Prediction KD
-          TEACHER-CA (YOLO26x+CA) ─┬─ DET-05 Prediction KD ─ DET-06 Feature + Prediction KD
-Depth:    DEP-01 YOLO26x-Depth ─┬─ DEP-02 YOLO26n-Depth baseline
-                                ├─ DEP-03 Output / DEP-04 Feature / DEP-05 Boundary / DEP-06 Relative / DEP-07 Full KD
-          TEACHER-CBAM (YOLO26x-Depth+CBAM) ─┬─ DEP-08 Output KD ─ DEP-09 Full KD
+Deteksi:  DET-01 YOLO26x ─┬─ DET-03 Feature KD ─ DET-04 Prediction KD ─ DET-05 Feature + Prediction KD
+          DET-06 YOLO26x+CA ─┬─ DET-08 Feature KD ─ DET-09 Prediction KD ─ DET-10 Feature + Prediction KD
+          DET-02 YOLO26n, DET-07 YOLO26n+CA (tanpa KD)
+Depth:    DEP-01 YOLO26x-Depth ─┬─ DEP-03 Output / DEP-04 Feature / DEP-05 Boundary / DEP-06 Relative / DEP-07 Full KD
+          DEP-08 YOLO26x-Depth+CBAM ─┬─ DEP-10 Output / DEP-11 Feature / DEP-12 Boundary / DEP-13 Relative / DEP-14 Full KD
+          DEP-02 YOLO26n-Depth, DEP-09 YOLO26n-Depth+CBAM (tanpa KD)
           (seluruh model depth: kalibrasi log-affine pada val setelah training)
 Evaluasi val → benchmark → EWM → SAW → student KD terpilih (deteksi + depth)
 Integrasi 1 citra RGB → alignment → inner ROI 60% → jarak (median) → 5 sektor → FORWARD/TURN_LEFT/TURN_RIGHT/STOP
@@ -70,19 +70,22 @@ Evaluasi jarak (MAE/RMSE/MAPE) dan akurasi navigasi (val SUN RGB-D / data indoor
 
   Nilai final akan diukur ulang oleh `evaluate_*` dengan `--include-extra`. Kebutuhan memori GPU teacher
   ber-attention tercatat di `gpu_memory.csv` setiap eksperimen.
-- **A-2 Jenis KD pada eksperimen "teacher + attention → student dengan KD".**
-  - **DET-05 (YOLO26x + CA → YOLO26n):** memakai **Prediction KD** sebagai KD dasar, sesuai prompt 5.1/5.6
-    ("Baseline prediction KD"). Satu-satunya perbedaan terhadap DET-04 adalah teacher ber-CA, sehingga efek CA
-    terisolasi. Perbedaan terhadap DET-06 adalah ketiadaan Feature KD. *(Revisi sesi ini: versi sebelumnya
-    repository memakai Feature KD untuk eksperimen ini; diganti agar sesuai daftar eksperimen prompt.)*
-  - **DEP-08 (YOLO26x-Depth + CBAM → YOLO26n-Depth):** memakai Depth Output Distillation saja (prompt 6.1).
-    Satu-satunya perbedaan terhadap DEP-03 adalah teacher ber-CBAM. DEP-09 memakai keempat komponen.
-
-  Kedua pilihan dapat diganti di `configs/detection/ca_kd.yaml` dan `configs/depth/cbam_kd.yaml`.
-- **A-4 Experiment ID.** Folder eksperimen memakai ID prompt: `outputs/detection/DET-01` … `DET-06`,
-  `outputs/depth/DEP-01` … `DEP-09`. Kedua teacher ber-attention adalah run pendukung yang dipakai bersama oleh
-  dua eksperimen, sehingga disimpan sebagai `outputs/detection/TEACHER-CA` dan `outputs/depth/TEACHER-CBAM`
-  (dievaluasi sebagai `extra_models`, tidak ikut EWM-SAW karena bukan alternatif pada daftar prompt).
+- **A-2 Kombinasi KD dengan teacher ber-attention (revisi: daftar eksperimen peneliti).** Setiap metode KD
+  dijalankan dua kali, dengan teacher biasa dan teacher ber-attention, sehingga efek attention pada teacher dapat
+  diisolasi per metode:
+  - Deteksi: Feature (DET-03 vs DET-08), Prediction (DET-04 vs DET-09), Feature + Prediction (DET-05 vs DET-10).
+  - Depth: Output (DEP-03 vs DEP-10), Feature (DEP-04 vs DEP-11), Boundary (DEP-05 vs DEP-12), Relative (DEP-06 vs
+    DEP-13), keempatnya (DEP-07 vs DEP-14).
+  Hyperparameter, bobot KD, dan student identik pada setiap pasangan; yang berbeda hanya teacher.
+- **A-4 Experiment ID.** Folder eksperimen memakai ID daftar eksperimen: `outputs/detection/DET-01` … `DET-10`,
+  `outputs/depth/DEP-01` … `DEP-14`. Teacher ber-attention (DET-06, DEP-08) adalah eksperimen penuh dan sekaligus
+  teacher KD; tidak ada lagi run pendukung terpisah (`TEACHER-CA`/`TEACHER-CBAM` dari versi sebelumnya).
+- **A-5 ⚠ perlu konfirmasi: attention pada model ringan tanpa KD (DET-07, DEP-09).** Atas daftar eksperimen
+  peneliti, YOLO26n + CA dan YOLO26n-Depth + CBAM dilatih tanpa KD dengan penempatan yang sama (P3/P4/P5, layer
+  23–25; bobot pretrained layer 0–22 dan head ditransfer, attention acak). Keduanya pembanding efek attention
+  langsung pada model ringan (bandingkan dengan DET-02 / DEP-02). Student pada seluruh eksperimen KD tetap
+  YOLO26n / YOLO26n-Depth standar (script KD menolak student ber-attention), sehingga parameter dan FLOPs student
+  KD identik dengan baseline. DET-07/DEP-09 memiliki sedikit parameter dan FLOPs tambahan yang terukur di evaluasi.
 - **A-3 Teacher dan student memakai satu kelas (`nc = 1`).** Detect head teacher dan student sama-sama
   menghasilkan skor satu kelas, sehingga Prediction KD dapat dilakukan anchor-per-anchor.
 
@@ -118,6 +121,16 @@ Evaluasi jarak (MAE/RMSE/MAPE) dan akurasi navigasi (val SUN RGB-D / data indoor
   terbagi ke train dan val. Pemetaan yang lebih rinci dapat diberikan lewat `group_overrides` (CSV
   `scene_id,group`). Daftar final disimpan di `datasets/sunrgbd_yolo/meta/splits.json` dan SHA-256-nya dicatat di
   `metadata.json` setiap eksperimen, sehingga seluruh run terbukti memakai split yang sama.
+- **S-3 Mode `split.mode: merged` (menggantikan S-0 sebagai split penelitian).** `alltrain` + `alltest`
+  (10.335) digabung; `val` ≈10% diambil per grup rekaman dan per sensor dengan aturan S-2; sisanya `train`
+  (≈9.300); tidak ada split `test` SUN RGB-D. Alasan: (i) pada split proposal hampir separuh data (5.050) hanya
+  dipakai validasi, padahal kurva DET-01/DET-02 menunjukkan model kekurangan data (teacher YOLO26x mulai overfit
+  di epoch ±45–50, baseline YOLO26n mentok di epoch ±59); (ii) val ±1.000 citra sudah cukup untuk early stopping,
+  `best.pt`, kalibrasi log-affine dan EWM-SAW; (iii) uji akhir memakai **data eksternal** yang tidak pernah masuk
+  pipeline ini, sehingga tidak ada bias seleksi pada angka akhir. Konsekuensi yang harus ditulis di BAB 3: angka
+  val bukan angka uji; hasil tidak dapat dibandingkan langsung dengan literatur yang melapor pada `alltest` resmi;
+  Tabel 3.6 proposal berubah; seluruh eksperimen DET/DEP harus dilatih ulang pada split ini (hasil pada split
+  proposal tidak boleh dicampur). Pipeline gagal bila `train + val ≠ 5.285 + 5.050` (`split.strict_counts`).
 - **D-3 Depth di luar 0,001–10 m dibuat invalid (0), bukan di-clip ke 10 m.** Clipping akan menciptakan
   ground truth palsu bernilai tepat 10 m yang kemudian dianggap valid oleh loss dan evaluasi. Proposal menyatakan
   "nilai di luar rentang tersebut tidak digunakan" (Sub-bab 3.2.4.3). Perilaku konverter Ultralytics tersedia
@@ -222,7 +235,7 @@ Evaluasi jarak (MAE/RMSE/MAPE) dan akurasi navigasi (val SUN RGB-D / data indoor
 - **I-5 Evaluasi jarak dan navigasi.** Pada SUN RGB-D: `configs/evaluation/{distance,navigation}.yaml` memakai
   `split: val` (5.050 data, mode proposal). Uji utama RM 3–4: data indoor yang diambil sendiri dengan jarak terukur
   dan arah sebenarnya (`gt_source: measured` / `scenarios`), yang independen dari seluruh proses training/seleksi.
-- **I-2** Depth map dipakai pada resolusi keluaran model (¼ dari 640 × 640, hasil stretch). Box diselaraskan
+- **I-2** Depth map dipakai pada resolusi keluaran model (¼ dari konten letterbox 640, padding dibuang; H-7). Box diselaraskan
   dengan Pers. 3.11–3.12, dan ukuran ROI minimum 4 piksel diterapkan pada grid depth. Opsi
   `depth.resolution: image` meng-upsample depth ke resolusi citra.
 - **I-3** Rentang depth valid untuk jarak adalah 0,1–10 m (Sub-bab 3.2.4.6), berbeda dari rentang ground truth
@@ -259,5 +272,28 @@ Evaluasi jarak (MAE/RMSE/MAPE) dan akurasi navigasi (val SUN RGB-D / data indoor
   (`accumulate = round(64 / batch)`) dan menskalakan weight decay. Batch 8 (teacher) dan 16 (student) pada Tabel
   3.7/3.8 karenanya menghasilkan ukuran batch efektif yang sama (64); yang berbeda hanya statistik BatchNorm per
   langkah dan memori. Ini perilaku bawaan, tidak diubah.
+- **H-7 Resize letterbox untuk deteksi dan depth di semua tahap (revisi 2026-11-11).** Training Ultralytics
+  me-letterbox (sisi panjang → 640, rasio aspek tetap, padding abu-abu; depth padding = 0 = invalid), tetapi
+  validator depth Ultralytics dan versi lama kode evaluasi/kalibrasi/integrasi men-*stretch* ke 640 × 640.
+  Sekarang validasi saat training (`ResearchDepthTrainer.build_dataset`), kalibrasi, evaluasi, dan sistem
+  navigasi memakai letterbox yang sama (`models/depth/yolo26_depth.py`: `preprocess`, `unletterbox`,
+  `depth_letterbox_transform`); padding dibuang dari peta depth sehingga Pers. 3.11–3.12 tetap eksak. Bukti
+  (split val 1.041): checkpoint DEP-02 lama, tanpa training ulang, δ1 0,769 → 0,814, AbsRel 0,192 → 0,167
+  setelah kalibrasi ulang dengan letterbox; uji coba training 2 epoch menunjukkan letterbox dan stretch setara
+  bila training dan evaluasi memakai cara yang sama (δ1 0,706 vs 0,707). Deteksi sudah letterbox dari awal.
+- **H-8 Learning rate fine-tuning depth: n 0,0003, x 0,0001 (menyimpang dari Tabel 3.8: 0,001 / 0,0005).**
+  Bobot pretrained `yolo26x-depth.pt` tanpa training sudah mencapai δ1 0,866 (validator Ultralytics), tetapi
+  DEP-01 setelah fine-tuning hanya 0,769: LR Tabel 3.8 merusak bobot pretrained. Uji coba epoch 1 (dengan H-9):
+  x 0,559 (lr 0,0005) → 0,735 (lr 0,0001); n 0,725 (lr 0,001) → 0,789 (lr 0,0003). Hanya skenario pretrained;
+  skenario scratch tetap memakai LR Tabel 3.8. Bukti baru dari epoch awal; hasil akhir dikonfirmasi oleh training
+  penuh.
+- **H-9 `warmup_bias_lr = 0` (deteksi dan depth).** Default Ultralytics 0,1 dirancang untuk SGD; Ultralytics
+  sendiri memakai 0 bila memilih AdamW otomatis, tetapi config ini menulis `optimizer: AdamW` eksplisit sehingga
+  LR bias dimulai dari 0,1 (≈ 200 × lr0) selama 3 epoch warmup. Uji coba epoch 1: DEP-01 δ1 0,443 → 0,559; DET-02
+  mAP50-95 epoch 1–3 0,296/0,376/0,424 → 0,433/0,411/0,437.
+- **H-10 `dlam = 1,0` tetap (SILog scale-invariant).** Rata-rata log-error SILog dihitung atas seluruh piksel
+  satu batch, jadi kesalahan skala antar-gambar sudah dihukum; yang bebas hanya satu skala global, dan itu
+  dikoreksi kalibrasi log-affine. Penguraian error DEP-02: koreksi skala global → δ1 0,809, per sensor 0,811,
+  per gambar (ideal, butuh GT) 0,867; menurunkan `dlam` hanya menyentuh komponen global.
 - **H-4** `deterministic: true` dan seed 42. Beberapa operasi CUDA tidak memiliki implementasi deterministik
   (PyTorch akan memberi peringatan), sehingga hasil antar-run dapat berbeda sangat kecil.

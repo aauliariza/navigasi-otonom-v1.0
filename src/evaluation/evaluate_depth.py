@@ -1,7 +1,8 @@
 """Evaluate every monocular depth configuration (proposal Sub-bab 3.2.5.2).
 
-For each model's (log-affine calibrated) ``weights/best.pt``: every val image is stretch-resized to ``imgsz``,
-predicted, the 1/4-resolution metric depth is bilinearly upsampled to the original ground-truth resolution, and
+For each model's (log-affine calibrated) ``weights/best.pt``: every val image is letterboxed to ``imgsz``
+(keputusan H-7), predicted, the padding is removed and the metric depth is bilinearly resized to the original
+ground-truth resolution, and
 Eq. (3.34)-(3.38) are computed over valid pixels (0.001 <= D_gt <= 10 m). No per-image median alignment is
 applied: the metrics measure the calibrated metric output, which is what the integrated system uses.
 

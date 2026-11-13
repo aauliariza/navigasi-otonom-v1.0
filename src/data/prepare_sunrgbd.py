@@ -7,6 +7,8 @@ Steps:
      no separate test split;
    * ``internal``: ``alltest`` -> ``test`` and a scene-aware internal ``val`` carved out of ``alltrain``
      (``create_split``); ``train`` = the rest.
+   * ``merged``: ``alltrain`` + ``alltest`` pooled, a scene-aware ``val`` carved out of the pool, ``train`` = the
+     rest; no test split (the final test uses external data).
 2. Discover scenes and pair RGB with depth by scene identity (``pair_rgb_depth``).
 3. Decode depth (Eq. 3.1-3.2), restrict to 0.001-10 m, save as uint16 mm PNG (``prepare_depth``).
 4. Convert 2D boxes to single-class YOLO labels (``prepare_annotations``).
@@ -71,7 +73,7 @@ def load_official_split(split_file: str | Path) -> dict[str, list[str]]:
     return split
 
 
-SPLIT_MODES = ("proposal", "internal")
+SPLIT_MODES = ("proposal", "internal", "merged")
 
 
 def build_experiment_split(cfg: dict) -> dict:
@@ -79,6 +81,8 @@ def build_experiment_split(cfg: dict) -> dict:
 
     ``proposal``: train = alltrain (5,285), val = alltest (5,050), test = [] (keputusan S-1).
     ``internal``: train + val (scene-grouped) = alltrain, test = alltest (keputusan S-2).
+    ``merged``: train + val (scene-grouped) = alltrain + alltest (10,335), test = [] -- the final test set is
+    external data that never enters this pipeline (keputusan S-3).
     """
     src, scfg = cfg["source"], cfg["split"]
     mode = str(scfg.get("mode", "proposal"))
@@ -92,15 +96,16 @@ def build_experiment_split(cfg: dict) -> dict:
             "internal_val": None, "groups": {},
         }
     iv = scfg.get("internal_val", {})
+    pool = official["train_official"] + official["test"] if mode == "merged" else official["train_official"]
     inner = internal_validation_split(
-        official["train_official"], float(iv.get("fraction", 0.10)), int(iv.get("seed", 42)),
+        pool, float(iv.get("fraction", 0.10)), int(iv.get("seed", 42)),
         load_group_overrides(resolve_path(iv["group_overrides"]) if iv.get("group_overrides") else None),
     )
     leaks = check_group_leakage(inner, inner["groups"])
     if leaks:
         raise ValueError(f"Internal validation shares {len(leaks)} recording groups with train: {leaks[:5]}")
     record = {
-        "mode": mode, "train": inner["train"], "val": inner["val"], "test": official["test"],
+        "mode": mode, "train": inner["train"], "val": inner["val"], "test": [] if mode == "merged" else official["test"],
         "official_sizes": {"alltrain": len(official["train_official"]), "alltest": len(official["test"])},
         "internal_val": {"fraction": float(iv.get("fraction", 0.10)), "seed": int(iv.get("seed", 42)),
                          "num_groups_train": len({inner["groups"][s] for s in inner["train"]}),
