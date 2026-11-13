@@ -15,6 +15,7 @@ calibration (scale-only, a fixed to 1), the full two-parameter log-affine form o
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 import cv2
@@ -27,11 +28,71 @@ from src.utils.checkpoint import load_ultralytics_ckpt, save_ultralytics_ckpt
 from src.utils.io import save_json
 
 
+PAD_VALUE = 114  # Ultralytics LetterBox / RandomPerspective border colour
+
+
+def letterbox_geometry(image_hw: tuple[int, int], imgsz: int) -> tuple[int, int, int, int]:
+    """Centred letterbox of an ``(H, W)`` image into ``imgsz`` x ``imgsz``: ``(new_h, new_w, top, left)``.
+
+    Same geometry as the training pipeline and the depth validator (keputusan H-7): the long side is resized to
+    ``imgsz`` with the aspect ratio kept (``BaseDataset.load_image``: ``ceil``), the rest is padded symmetrically
+    (``LetterBox``: ``round(d - 0.1)``).
+    """
+    h, w = image_hw
+    r = imgsz / max(h, w)
+    nh, nw = min(math.ceil(h * r), imgsz), min(math.ceil(w * r), imgsz)
+    return nh, nw, round((imgsz - nh) / 2 - 0.1), round((imgsz - nw) / 2 - 0.1)
+
+
 def preprocess(bgr: np.ndarray, imgsz: int, device, half: bool = False) -> torch.Tensor:
-    """Stretch-resize to ``imgsz`` x ``imgsz`` (same as Ultralytics depth val/predict ``scale_fill``), RGB, [0, 1]."""
-    im = cv2.resize(bgr, (imgsz, imgsz), interpolation=cv2.INTER_LINEAR)[:, :, ::-1]
-    t = torch.from_numpy(np.ascontiguousarray(im)).to(device).permute(2, 0, 1).float().div_(255.0)[None]
+    """Letterbox to ``imgsz`` x ``imgsz`` (aspect ratio kept, grey padding, as in training), RGB, [0, 1]."""
+    nh, nw, top, left = letterbox_geometry(bgr.shape[:2], imgsz)
+    im = np.full((imgsz, imgsz, 3), PAD_VALUE, dtype=np.uint8)
+    im[top:top + nh, left:left + nw] = cv2.resize(bgr, (nw, nh), interpolation=cv2.INTER_LINEAR) if bgr.shape[:2] != (nh, nw) else bgr
+    t = torch.from_numpy(np.ascontiguousarray(im[:, :, ::-1])).to(device).permute(2, 0, 1).float().div_(255.0)[None]
     return t.half() if half else t
+
+
+def unletterbox(d: torch.Tensor, image_hw: tuple[int, int], imgsz: int, out_size: tuple[int, int] | None = None) -> torch.Tensor:
+    """Remove the letterbox padding from a model output ``(1, 1, h, w)``.
+
+    The output is resized to ``imgsz`` x ``imgsz``, the image content is cropped, and the crop is resized to
+    ``out_size`` (default: the content at the model's output stride, i.e. 1/4). The result covers the full frame
+    with one uniform scale per axis, so Eq. (3.11)-(3.12) map image boxes onto it exactly.
+    """
+    nh, nw, top, left = letterbox_geometry(image_hw, imgsz)
+    if out_size is None:
+        s = imgsz / d.shape[-1]
+        out_size = (max(round(nh / s), 1), max(round(nw / s), 1))
+    d = F.interpolate(d.float(), size=(imgsz, imgsz), mode="bilinear", align_corners=False)[..., top:top + nh, left:left + nw]
+    if tuple(d.shape[-2:]) != tuple(out_size):
+        d = F.interpolate(d, size=tuple(out_size), mode="bilinear", align_corners=False)
+    return d
+
+
+def depth_letterbox_transform(imgsz: int):
+    """Validation transform: Ultralytics ``LetterBox`` that also pads the depth target (0 = invalid).
+
+    Ultralytics' depth validator stretches (``scale_fill``) while training letterboxes; a stock ``LetterBox`` does not
+    touch ``labels["depth"]`` (``DepthFormat`` would then stretch the depth onto the padded image, misaligning it).
+    """
+    from ultralytics.data.augment import LetterBox
+
+    class DepthLetterBox(LetterBox):
+        def __call__(self, labels=None, image=None):
+            depth = labels.get("depth") if labels else None
+            if depth is None:
+                return super().__call__(labels, image)
+            params = self.get_params(labels)
+            labels = self.apply_instances(self.apply_image(labels, params), params)
+            nw, nh = params["new_unpad"]
+            if depth.shape[:2] != (nh, nw):
+                depth = cv2.resize(depth, (nw, nh), interpolation=cv2.INTER_NEAREST)
+            labels["depth"] = cv2.copyMakeBorder(depth, params["top"], params["bottom"], params["left"], params["right"],
+                                                 cv2.BORDER_CONSTANT, value=0)
+            return labels
+
+    return DepthLetterBox(new_shape=(imgsz, imgsz), scaleup=False, center=True, padding_value=PAD_VALUE)
 
 
 def load_model(path: str | Path, device="cpu", fuse: bool = True):
@@ -51,13 +112,15 @@ def depth_head(model):
 
 @torch.no_grad()
 def predict_depth(model, bgr: np.ndarray, imgsz: int = 640, out_size: tuple[int, int] | None = None) -> np.ndarray:
-    """Metric depth map (metres, float32). ``out_size=(H, W)`` bilinearly resizes the 1/4-resolution output."""
+    """Metric depth map (metres, float32) of the whole frame, letterbox padding removed.
+
+    ``out_size=(H, W)`` resizes it (e.g. to the ground-truth resolution); by default it stays at the model's 1/4
+    output resolution.
+    """
     device = next(model.parameters()).device
     d = model(preprocess(bgr, imgsz, device))
     d = d[0] if isinstance(d, (tuple, list)) else d
-    if out_size is not None and tuple(d.shape[-2:]) != tuple(out_size):
-        d = F.interpolate(d.float(), size=out_size, mode="bilinear", align_corners=True)
-    return d[0, 0].float().cpu().numpy()
+    return unletterbox(d, bgr.shape[:2], imgsz, out_size)[0, 0].float().cpu().numpy()
 
 
 def fit_log_affine(log_pred: np.ndarray, log_gt: np.ndarray) -> tuple[float, float, str]:

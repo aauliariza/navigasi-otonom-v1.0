@@ -52,14 +52,14 @@ FORWARD / TURN_LEFT / TURN_RIGHT / STOP direkomendasikan pada antarmuka. **Tidak
 **Arsitektur penelitian**
 
 ```
-SUN RGB-D ─► preprocessing (pairing, depth meter, label YOLO, split train 5.285 / val 5.050)
+SUN RGB-D ─► preprocessing (pairing, depth meter, label YOLO, split train 9.294 / val 1.041, test = data eksternal)
    ├─► DETEKSI: DET-01 YOLO26x ─► DET-03 Feature KD, DET-04 Prediction KD, DET-05 Feature + Prediction KD
    │            DET-06 YOLO26x + Coordinate Attention ─► DET-08 Feature KD, DET-09 Prediction KD, DET-10 Feature + Prediction KD
    │            DET-02 YOLO26n, DET-07 YOLO26n + CA (tanpa KD)
    └─► DEPTH:   DEP-01 YOLO26x-Depth ─► DEP-03 Output, DEP-04 Feature, DEP-05 Boundary, DEP-06 Relative, DEP-07 Full (4 komponen)
                 DEP-08 YOLO26x-Depth + CBAM ─► DEP-10 Output, DEP-11 Feature, DEP-12 Boundary, DEP-13 Relative, DEP-14 Full
                 DEP-02 YOLO26n-Depth, DEP-09 YOLO26n-Depth + CBAM (tanpa KD)
-evaluasi (val 5.050) ─► EWM + SAW per tugas ─► model terbaik (student KD)
+evaluasi (val 1.041) ─► EWM + SAW per tugas ─► model terbaik (student KD)
 integrasi ─► alignment ─► inner ROI ─► filter valid ─► persentil 5–95 ─► median = jarak ─► ROI navigasi ─► 5 sektor
           ─► free/blocked ─► arah ─► antarmuka (gambar / video / webcam)
 ```
@@ -120,8 +120,8 @@ Semua perintah dijalankan dari **root repository**; nilai YAML dapat ditimpa den
 | `src/data/pair_rgb_depth.py` | Menemukan folder scene, menurunkan identitas scene portabel (`kv1/NYUdata/NYU0001`), memasangkan `image/*.jpg` dengan `depth_bfx/*.png` dari folder scene yang sama, memeriksa keberadaan/keunikan/resolusi/rasio depth valid, membaca intrinsics |
 | `src/data/prepare_depth.py` | Dekode bit-rotation `(D>>3)\|(D<<13)`, mm→m, valid mask 0,001–10 m (di luar rentang = 0/invalid), simpan/muat PNG uint16 mm lossless |
 | `src/data/prepare_annotations.py` | Membaca `SUNRGBDMeta2DBB_v2.mat` (atau poligon `annotation2Dfinal`), clip box ke citra, buang box invalid/sisi < 4 px, konversi YOLO kelas 0 (Pers. 3.3–3.8) |
-| `src/data/create_split.py` | Mode split opsional `internal`: menurunkan grup rekaman tiap scene dan membagi `alltrain` menjadi `train` + validasi internal tanpa berbagi grup (tidak dipakai pada mode default `proposal`) |
-| `src/data/prepare_sunrgbd.py` | Orkestrasi preprocessing: split (`proposal`: train 5.285 / val 5.050; atau `internal`), pairing, depth meter, label YOLO, `manifest.csv`, `splits.json`, YAML dataset deteksi/depth, laporan |
+| `src/data/create_split.py` | Pembagian per grup rekaman untuk mode `merged` (dipakai penelitian) dan `internal` (opsional): menurunkan grup rekaman tiap scene dan membagi data menjadi `train` + validasi tanpa berbagi grup (tidak dipakai pada mode `proposal`) |
+| `src/data/prepare_sunrgbd.py` | Orkestrasi preprocessing: split (`merged`: train 9.294 / val 1.041; atau `proposal` / `internal`), pairing, depth meter, label YOLO, `manifest.csv`, `splits.json`, YAML dataset deteksi/depth, laporan |
 | `src/data/validate_dataset.py` | Integrity check (pairing, resolusi, rentang depth, label, kebocoran sampel dan grup, jumlah resmi) → `integrity_report.json`; `require_dataset_ok` menjadi gate semua training |
 | `models/__init__.py` | Mendaftarkan `CoordAtt`/`CBAM` ke parser YAML Ultralytics agar model ber-attention dapat dibangun dan dimuat |
 | `models/common/model_utils.py` | Membangun YAML ber-attention (CA/CBAM pada P3/P4/P5), membangun model, transfer bobot pretrained melintasi layer sisipan, menghitung parameter dan FLOPs (`thop`, error eksplisit) |
@@ -182,10 +182,10 @@ Semua perintah dijalankan dari **root repository**; nilai YAML dapat ditimpa den
 
 | File | Fungsi |
 |---|---|
-| `configs/dataset/sunrgbd.yaml` | Path data mentah, sumber depth/box, rentang depth, mode split (`proposal` default), jumlah resmi, opsi validasi internal |
+| `configs/dataset/sunrgbd.yaml` | Path data mentah, sumber depth/box, rentang depth, mode split (`merged` dipakai penelitian), jumlah resmi, opsi validasi per grup |
 | `configs/detection/_common.yaml` | Hyperparameter Tabel 3.7, augmentasi deteksi, parameter inferensi; diwarisi semua config deteksi |
 | `configs/detection/{teacher_x,baseline,feature_kd,prediction_kd,feature_prediction_kd,teacher_x_ca,student_n_ca,ca_feature_kd,ca_prediction_kd,ca_feature_prediction_kd}.yaml` | DET-01 … DET-10 (urutan sama) |
-| `configs/depth/_common.yaml` | Hyperparameter Tabel 3.8, augmentasi depth, kalibrasi log-affine (split `val`) |
+| `configs/depth/_common.yaml` | Hyperparameter Tabel 3.8 (kecuali lr0 dan `warmup_bias_lr`, keputusan H-8/H-9), augmentasi depth, kalibrasi log-affine (split `val`) |
 | `configs/depth/{teacher_x,baseline,output_kd,feature_kd,boundary_kd,relative_kd,full_kd,teacher_x_cbam,student_n_cbam,cbam_output_kd,cbam_feature_kd,cbam_boundary_kd,cbam_relative_kd,cbam_full_kd}.yaml` | DEP-01 … DEP-14 (urutan sama) |
 | `configs/evaluation/detection.yaml`, `depth.yaml` | Daftar model, split, titik operasi/mode head, benchmark |
 | `configs/evaluation/selection.yaml` | Kriteria benefit/cost EWM-SAW, kebijakan data hilang, larangan split test |
@@ -282,8 +282,8 @@ Rincian: [docs/DATASET_PREPARATION.md](docs/DATASET_PREPARATION.md).
 3. **Direktori dataset**: `datasets/raw/SUNRGBD/{kv1,kv2,realsense,xtion}`,
    `datasets/raw/SUNRGBDtoolbox/traintestSUNRGBD/allsplit.mat`, `datasets/raw/SUNRGBDMeta2DBB_v2.mat`. Path lain:
    ubah `source.*` di `configs/dataset/sunrgbd.yaml`.
-4–9. **Pairing RGB-depth, decoding depth, konversi meter, dataset deteksi, anotasi YOLO, split resmi + validasi
-   internal** dijalankan oleh satu perintah:
+4–9. **Pairing RGB-depth, decoding depth, konversi meter, dataset deteksi, anotasi YOLO, split train + validasi
+   per grup rekaman** dijalankan oleh satu perintah:
 
    ```bash
    python -m src.data.prepare_sunrgbd --config configs/dataset/sunrgbd.yaml
@@ -292,10 +292,11 @@ Rincian: [docs/DATASET_PREPARATION.md](docs/DATASET_PREPARATION.md).
    - Pairing berdasarkan identitas scene (bukan urutan berkas), dengan pemeriksaan resolusi dan berkas rusak.
    - `D_mm = (D_raw >> 3) | (D_raw << 13)`, `D_m = D_mm / 1000`; valid bila 0,001 ≤ D ≤ 10 m, selain itu 0.
    - Box: clip ke citra, buang invalid/sisi < 4 px, YOLO kelas 0 `objek`.
-   - Split (`split.mode: proposal`, sesuai Tabel 3.6, sama untuk deteksi dan depth): `alltrain` → `train`
-     (5.285), `alltest` → `val` (5.050). Tidak ada split test terpisah; uji independen sistem memakai data indoor
-     yang Anda ambil sendiri (§8–§10). Mode opsional `--set split.mode=internal` membuat validasi internal dari
-     `alltrain` dan menjadikan 5.050 data sebagai `test`.
+   - Split (`split.mode: merged`, keputusan S-3, sama untuk deteksi dan depth): `alltrain` + `alltest` (10.335)
+     digabung, lalu ±10% diambil sebagai `val` (1.041) per grup rekaman dan per sensor; sisanya `train` (9.294).
+     Tidak ada split test SUN RGB-D; evaluasi akhir memakai data eksternal yang tidak pernah masuk pipeline ini
+     (§8–§10). Mode lain: `--set split.mode=proposal` (Tabel 3.6: train 5.285 / val 5.050) dan
+     `--set split.mode=internal` (validasi internal dari `alltrain`, 5.050 data sebagai `test`).
 10–12. **Pemeriksaan kebocoran, validasi dataset, laporan preprocessing**:
 
    ```bash
@@ -303,7 +304,7 @@ Rincian: [docs/DATASET_PREPARATION.md](docs/DATASET_PREPARATION.md).
    ```
 
    Lulus bila `outputs/dataset/integrity_report.json` berisi `"passed": true` (termasuk
-   `split_mode: proposal`, train 5.285, val 5.050). Laporan preprocessing: `datasets/sunrgbd_yolo/meta/{preparation_report.json,
+   `split_mode: merged`, train + val = 10.335, tanpa kebocoran grup). Laporan preprocessing: `datasets/sunrgbd_yolo/meta/{preparation_report.json,
    manifest.csv,splits.json,preparation_failures.csv}`.
 
 Alternatif satu langkah: `bash scripts/prepare_dataset.sh` (tambahkan `--download` untuk mengunduh).
@@ -480,7 +481,7 @@ Semua sekaligus: `bash scripts/train_all_depth.sh train.device=0`.
 
 Rincian: [docs/EVALUATION_GUIDE.md](docs/EVALUATION_GUIDE.md).
 
-1–6. **Evaluasi deteksi dan depth** (akurasi, FPS, parameter, FLOPs, memori GPU) pada split `val` (5.050):
+1–6. **Evaluasi deteksi dan depth** (akurasi, FPS, parameter, FLOPs, memori GPU) pada split `val` (1.041):
 
    ```bash
    python -m src.evaluation.evaluate_detection --config configs/evaluation/detection.yaml --include-extra --set device=0
@@ -592,7 +593,7 @@ Lalu buka http://127.0.0.1:7860. Hasil yang disimpan: `outputs/inference/interfa
 | 2 | Dataset | `bash scripts/prepare_dataset.sh` | `datasets/sunrgbd_yolo/`, `outputs/dataset/` |
 | 3–5 | Training teacher, baseline, KD deteksi | `bash scripts/train_all_detection.sh train.device=0` | `outputs/detection/DET-01..10/` |
 | 3–5 | Training teacher, baseline, KD depth | `bash scripts/train_all_depth.sh train.device=0` | `outputs/depth/DEP-01..14/` |
-| 6–7 | Evaluasi (val 5.050) | `bash scripts/evaluate_all.sh device=0` | `outputs/evaluation/*/val/` |
+| 6–7 | Evaluasi (val 1.041) | `bash scripts/evaluate_all.sh device=0` | `outputs/evaluation/*/val/` |
 | 8–10 | EWM, SAW, pemilihan | `bash scripts/select_models.sh` | `outputs/selection/` |
 | 11–15 | Integrasi, jarak, navigasi | `bash scripts/run_integrated_system.sh datasets/sunrgbd_yolo/images/val <satu_citra_benchmark>` | `outputs/inference/images/`, `outputs/integration/` |
 | 16–18 | Gambar / video / webcam | §10 | `outputs/inference/{images,videos,webcam}/` |
@@ -645,6 +646,8 @@ ultralytics 8.4.194, OpenCV 5.0.0):
   terputus, resolusi berbeda), checkpoint hilang. Integration test: gate dataset → training teacher/baseline/KD
   (deteksi + depth) → interrupt + resume → kalibrasi pada `val` → evaluasi → EWM-SAW → integrasi → CLI gambar dan
   video dengan model nyata → evaluasi jarak dan navigasi.
+- Setelah mode `merged` ditambahkan (S-3), `pytest tests/` di perangkat penelitian (Python 3.10, env `auliaenv`):
+  **108 test lulus**, termasuk 2 test baru untuk mode tersebut.
 - `scripts/smoke_test.sh`: **lulus** (mode split proposal). 24 training (DET-01…10, DEP-01…14; 1 epoch, imgsz 96, teacher memakai skala n agar cepat), evaluasi `val`, EWM-SAW, CLI gambar dan video, evaluasi jarak
   dan navigasi, benchmark sistem, laporan per ID. Angkanya tidak bermakna ilmiah.
 
@@ -670,9 +673,10 @@ Ketidaksesuaian antar-sumber dan keputusan yang perlu dikonfirmasi pembimbing ad
 
 - **X-1** Tabel 3.1 memuat 3 model per tugas; implementasi memuat 10 (deteksi) dan 14 (depth) alternatif.
 - **X-2** Object ROI Distillation dihapus; Full KD = 4 komponen (Pers. 3.9–3.10 perlu direvisi).
-- **S-0** Split proposal train 5.285 / val 5.050 untuk semua model. Karena `val` dipakai untuk seleksi
-  (early stopping, kalibrasi, EWM-SAW) sekaligus pelaporan, metrik model berpotensi sedikit optimistis; ini perlu
-  ditulis sebagai keterbatasan di BAB 3. Uji independen: data indoor sendiri (RM 3–4).
+- **S-3** Split `merged` untuk semua model (menggantikan split proposal S-0): train 9.294 / val 1.041, dipisah per
+  grup rekaman dan per sensor; Tabel 3.6 perlu direvisi. Angka `val` dipakai untuk seleksi (early stopping,
+  kalibrasi, EWM-SAW) sehingga bukan angka uji. Uji akhir: data eksternal. Hasil tidak dapat dibandingkan langsung
+  dengan literatur yang melapor pada `alltest` resmi, dan hasil dari split proposal tidak boleh dicampur.
 - **C-1** Kalibrasi log-affine di-fit pada split `val`.
 - **A-1/A-5** CA dan CBAM pada P3/P4/P5; dipasang pada teacher (DET-06, DEP-08) dan, sebagai pembanding tanpa KD, pada model ringan (DET-07, DEP-09). Student KD tetap YOLO26n / YOLO26n-Depth standar.
 - **K-1** Rumus dan bobot Prediction KD (tidak ada di proposal).

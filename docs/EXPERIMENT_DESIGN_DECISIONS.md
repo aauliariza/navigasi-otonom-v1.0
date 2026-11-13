@@ -121,6 +121,16 @@ Evaluasi jarak (MAE/RMSE/MAPE) dan akurasi navigasi (val SUN RGB-D / data indoor
   terbagi ke train dan val. Pemetaan yang lebih rinci dapat diberikan lewat `group_overrides` (CSV
   `scene_id,group`). Daftar final disimpan di `datasets/sunrgbd_yolo/meta/splits.json` dan SHA-256-nya dicatat di
   `metadata.json` setiap eksperimen, sehingga seluruh run terbukti memakai split yang sama.
+- **S-3 Mode `split.mode: merged` (menggantikan S-0 sebagai split penelitian).** `alltrain` + `alltest`
+  (10.335) digabung; `val` ≈10% diambil per grup rekaman dan per sensor dengan aturan S-2; sisanya `train`
+  (≈9.300); tidak ada split `test` SUN RGB-D. Alasan: (i) pada split proposal hampir separuh data (5.050) hanya
+  dipakai validasi, padahal kurva DET-01/DET-02 menunjukkan model kekurangan data (teacher YOLO26x mulai overfit
+  di epoch ±45–50, baseline YOLO26n mentok di epoch ±59); (ii) val ±1.000 citra sudah cukup untuk early stopping,
+  `best.pt`, kalibrasi log-affine dan EWM-SAW; (iii) uji akhir memakai **data eksternal** yang tidak pernah masuk
+  pipeline ini, sehingga tidak ada bias seleksi pada angka akhir. Konsekuensi yang harus ditulis di BAB 3: angka
+  val bukan angka uji; hasil tidak dapat dibandingkan langsung dengan literatur yang melapor pada `alltest` resmi;
+  Tabel 3.6 proposal berubah; seluruh eksperimen DET/DEP harus dilatih ulang pada split ini (hasil pada split
+  proposal tidak boleh dicampur). Pipeline gagal bila `train + val ≠ 5.285 + 5.050` (`split.strict_counts`).
 - **D-3 Depth di luar 0,001–10 m dibuat invalid (0), bukan di-clip ke 10 m.** Clipping akan menciptakan
   ground truth palsu bernilai tepat 10 m yang kemudian dianggap valid oleh loss dan evaluasi. Proposal menyatakan
   "nilai di luar rentang tersebut tidak digunakan" (Sub-bab 3.2.4.3). Perilaku konverter Ultralytics tersedia
@@ -225,7 +235,7 @@ Evaluasi jarak (MAE/RMSE/MAPE) dan akurasi navigasi (val SUN RGB-D / data indoor
 - **I-5 Evaluasi jarak dan navigasi.** Pada SUN RGB-D: `configs/evaluation/{distance,navigation}.yaml` memakai
   `split: val` (5.050 data, mode proposal). Uji utama RM 3–4: data indoor yang diambil sendiri dengan jarak terukur
   dan arah sebenarnya (`gt_source: measured` / `scenarios`), yang independen dari seluruh proses training/seleksi.
-- **I-2** Depth map dipakai pada resolusi keluaran model (¼ dari 640 × 640, hasil stretch). Box diselaraskan
+- **I-2** Depth map dipakai pada resolusi keluaran model (¼ dari konten letterbox 640, padding dibuang; H-7). Box diselaraskan
   dengan Pers. 3.11–3.12, dan ukuran ROI minimum 4 piksel diterapkan pada grid depth. Opsi
   `depth.resolution: image` meng-upsample depth ke resolusi citra.
 - **I-3** Rentang depth valid untuk jarak adalah 0,1–10 m (Sub-bab 3.2.4.6), berbeda dari rentang ground truth
@@ -262,5 +272,28 @@ Evaluasi jarak (MAE/RMSE/MAPE) dan akurasi navigasi (val SUN RGB-D / data indoor
   (`accumulate = round(64 / batch)`) dan menskalakan weight decay. Batch 8 (teacher) dan 16 (student) pada Tabel
   3.7/3.8 karenanya menghasilkan ukuran batch efektif yang sama (64); yang berbeda hanya statistik BatchNorm per
   langkah dan memori. Ini perilaku bawaan, tidak diubah.
+- **H-7 Resize letterbox untuk deteksi dan depth di semua tahap (revisi 2026-11-11).** Training Ultralytics
+  me-letterbox (sisi panjang → 640, rasio aspek tetap, padding abu-abu; depth padding = 0 = invalid), tetapi
+  validator depth Ultralytics dan versi lama kode evaluasi/kalibrasi/integrasi men-*stretch* ke 640 × 640.
+  Sekarang validasi saat training (`ResearchDepthTrainer.build_dataset`), kalibrasi, evaluasi, dan sistem
+  navigasi memakai letterbox yang sama (`models/depth/yolo26_depth.py`: `preprocess`, `unletterbox`,
+  `depth_letterbox_transform`); padding dibuang dari peta depth sehingga Pers. 3.11–3.12 tetap eksak. Bukti
+  (split val 1.041): checkpoint DEP-02 lama, tanpa training ulang, δ1 0,769 → 0,814, AbsRel 0,192 → 0,167
+  setelah kalibrasi ulang dengan letterbox; uji coba training 2 epoch menunjukkan letterbox dan stretch setara
+  bila training dan evaluasi memakai cara yang sama (δ1 0,706 vs 0,707). Deteksi sudah letterbox dari awal.
+- **H-8 Learning rate fine-tuning depth: n 0,0003, x 0,0001 (menyimpang dari Tabel 3.8: 0,001 / 0,0005).**
+  Bobot pretrained `yolo26x-depth.pt` tanpa training sudah mencapai δ1 0,866 (validator Ultralytics), tetapi
+  DEP-01 setelah fine-tuning hanya 0,769: LR Tabel 3.8 merusak bobot pretrained. Uji coba epoch 1 (dengan H-9):
+  x 0,559 (lr 0,0005) → 0,735 (lr 0,0001); n 0,725 (lr 0,001) → 0,789 (lr 0,0003). Hanya skenario pretrained;
+  skenario scratch tetap memakai LR Tabel 3.8. Bukti baru dari epoch awal; hasil akhir dikonfirmasi oleh training
+  penuh.
+- **H-9 `warmup_bias_lr = 0` (deteksi dan depth).** Default Ultralytics 0,1 dirancang untuk SGD; Ultralytics
+  sendiri memakai 0 bila memilih AdamW otomatis, tetapi config ini menulis `optimizer: AdamW` eksplisit sehingga
+  LR bias dimulai dari 0,1 (≈ 200 × lr0) selama 3 epoch warmup. Uji coba epoch 1: DEP-01 δ1 0,443 → 0,559; DET-02
+  mAP50-95 epoch 1–3 0,296/0,376/0,424 → 0,433/0,411/0,437.
+- **H-10 `dlam = 1,0` tetap (SILog scale-invariant).** Rata-rata log-error SILog dihitung atas seluruh piksel
+  satu batch, jadi kesalahan skala antar-gambar sudah dihukum; yang bebas hanya satu skala global, dan itu
+  dikoreksi kalibrasi log-affine. Penguraian error DEP-02: koreksi skala global → δ1 0,809, per sensor 0,811,
+  per gambar (ideal, butuh GT) 0,867; menurunkan `dlam` hanya menyentuh komponen global.
 - **H-4** `deterministic: true` dan seed 42. Beberapa operasi CUDA tidak memiliki implementasi deterministik
   (PyTorch akan memberi peringatan), sehingga hasil antar-run dapat berbeda sangat kecil.

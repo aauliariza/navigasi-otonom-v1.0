@@ -1,0 +1,11 @@
+{
+  "checkpoint": "/home/comvis/Aulia/navigasi-otonom-v1.0/outputs/depth/DEP-07/weights/last.pt",
+  "split": "val",
+  "num_images": 1000,
+  "num_pixels": 20000000,
+  "a": 1.0745248794555664,
+  "b": -0.0636058822274208,
+  "mode": "log_affine",
+  "fit_rmse_log_before": 0.26398518681526184,
+  "fit_rmse_log_after": 0.26237210631370544
+}

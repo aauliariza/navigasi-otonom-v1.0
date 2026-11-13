@@ -11,7 +11,7 @@ Keputusan yang menyimpang dari proposal ada di [EXPERIMENT_DESIGN_DECISIONS.md](
 | 3.2.3.2, Pers. 3.1–3.2 | Pairing RGB-depth, dekode uint16, meter | `src/data/pair_rgb_depth.py`, `src/data/prepare_depth.py` | idem |
 | 3.2.3.3, Pers. 3.3–3.8 | Dataset deteksi satu kelas, YOLO, sisi ≥ 4 px | `src/data/prepare_annotations.py` | idem |
 | Tabel 3.7 | Hyperparameter deteksi | `configs/detection/_common.yaml` (+ batch 8 pada teacher) | — |
-| Tabel 3.8 | Hyperparameter depth | `configs/depth/_common.yaml` (+ batch 8, lr 0,0005 pada teacher) | — |
+| Tabel 3.8 | Hyperparameter depth | `configs/depth/_common.yaml` (+ batch 8, lr 0,0001 pada teacher; lr menyimpang dari Tabel 3.8, keputusan H-8) | — |
 | 3.2.4.1 | YOLO26x / YOLO26n, conf 0,25, NMS 0,45, max 100 | `src/training/train_detection.py` | `configs/detection/{teacher_x,baseline}.yaml`, `configs/system/inference.yaml` |
 | 3.2.4.2, Pers. 2.5–2.7 | KD deteksi (framework, `dis = 6`) | `models/detection/detection_teacher_student.py`, `src/losses/detection_kd.py`, `src/training/train_detection_kd.py` | `configs/detection/*kd*.yaml` |
 | 3.2.4.3, Pers. 2.4 | YOLO26-Depth, rentang 0,001–10 m, log-affine | `src/training/train_depth.py`, `models/depth/yolo26_depth.py` | `configs/depth/{teacher_x,baseline}.yaml` |

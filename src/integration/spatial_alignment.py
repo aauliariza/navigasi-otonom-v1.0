@@ -2,10 +2,10 @@
 
 ``x' = x * W_D / W_I``,  ``y' = y * H_D / H_I``
 
-Both models receive the same RGB frame. YOLO26 returns boxes in original-image pixels (its letterbox is undone
-by Ultralytics), while YOLO26-Depth sees the frame stretch-resized to imgsz x imgsz and returns a map at 1/4 of
-that size. A stretch resize is a pure per-axis scaling of the full frame, so Eq. (3.11)-(3.12) map image
-coordinates to depth coordinates exactly (no offset, no padding to compensate).
+Both models receive the same RGB frame, letterboxed to imgsz x imgsz (keputusan H-7). YOLO26 returns boxes in
+original-image pixels (its letterbox is undone by Ultralytics). For YOLO26-Depth the padding is removed from the
+output map (``models.depth.yolo26_depth.unletterbox``), so the depth map covers exactly the full frame with one
+scale per axis and Eq. (3.11)-(3.12) map image coordinates to depth coordinates exactly (no offset left).
 """
 
 from __future__ import annotations

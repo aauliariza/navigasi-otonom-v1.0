@@ -1,0 +1,62 @@
+data:
+  yaml: datasets/sunrgbd_yolo/sunrgbd_detect.yaml
+  integrity_report: outputs/dataset/integrity_report.json
+  require_integrity: true
+output:
+  root: outputs
+  group: detection
+train:
+  epochs: 100
+  batch: 16
+  imgsz: 640
+  optimizer: AdamW
+  lr0: 0.001
+  lrf: 0.01
+  weight_decay: 0.0005
+  warmup_epochs: 3
+  cos_lr: true
+  patience: 25
+  amp: true
+  seed: 42
+  deterministic: true
+  workers: 8
+  plots: true
+  hsv_h: 0.015
+  hsv_s: 0.7
+  hsv_v: 0.4
+  fliplr: 0.5
+  flipud: 0.0
+  translate: 0.1
+  scale: 0.5
+  degrees: 0.0
+  shear: 0.0
+  perspective: 0.0
+  mosaic: 1.0
+  mixup: 0.0
+  close_mosaic: 10
+kd:
+  enabled: true
+  teacher_config: configs/detection/teacher_x_ca.yaml
+  feature:
+    enabled: false
+  prediction:
+    enabled: true
+    weight: 1.0
+    cls_weight: 1.0
+    box_weight: 1.0
+    temperature: 1.0
+    branches:
+    - one2many
+    - one2one
+inference:
+  conf: 0.25
+  iou: 0.45
+  max_det: 100
+_source_: /home/comvis/Aulia/navigasi-otonom-v1.0/configs/detection/_common.yaml
+experiment:
+  id: DET-09
+  description: 'DET-09: YOLO26x+CA -> YOLO26n, Prediction KD'
+model:
+  arch: yolo26n.yaml
+  weights: yolo26n.pt
+  attention: none

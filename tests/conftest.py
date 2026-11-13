@@ -60,4 +60,4 @@ def synthetic_dataset(tmp_path_factory):
     """Prepared + validated synthetic dataset (raw SUN RGB-D layout -> YOLO layout)."""
     from scripts_helpers import build_synthetic_dataset
 
-    return build_synthetic_dataset(tmp_path_factory.mktemp("synthetic"))
+    return build_synthetic_dataset(tmp_path_factory.mktemp("synthetic"), extra=["split.mode=proposal"])

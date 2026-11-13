@@ -15,8 +15,8 @@ datasets/*
 !datasets/.gitkeep
 
 # Output eksperimen, checkpoint, cache
-outputs/*
-!outputs/.gitkeep
+#outputs/*
+#!outputs/.gitkeep
 runs/
 *.pt
 *.pth
@@ -26,6 +26,8 @@ runs/
 *.npy
 *.mat
 *.zip
+*.log
+
 
 # IDE / OS
 .vscode/

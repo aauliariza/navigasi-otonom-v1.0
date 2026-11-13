@@ -22,7 +22,7 @@ peneliti: 10 model deteksi dan 14 model depth; seluruhnya adalah alternatif EWM-
 Feature KD = score-weighted L2 framework (`dis = 6`, tap 16/19/22; teacher CA: 23/24/25). Prediction KD =
 soft-label BCE kelas + L1 box berbobot confidence teacher. CA = Coordinate Attention pada P3/P4/P5 (layer 23–25).
 Hyperparameter bersama (`configs/detection/_common.yaml`): 100 epoch, input 640, AdamW, lr 0,001, lrf 0,01,
-weight decay 0,0005, warmup 3 epoch, cosine, early stopping 25, AMP, seed 42, 8 worker; batch 16 (YOLO26n,
+weight decay 0,0005, warmup 3 epoch (`warmup_bias_lr` 0, keputusan H-9), cosine, early stopping 25, AMP, seed 42, 8 worker; batch 16 (YOLO26n,
 YOLO26n + CA) dan 8 (YOLO26x, YOLO26x + CA). Inferensi: conf 0,25, NMS IoU 0,45 (head one-to-many), max 100.
 
 ## 2. Monocular depth estimation (hyperparameter proposal Tabel 3.8; `configs/depth/`)
@@ -46,7 +46,7 @@ YOLO26n + CA) dan 8 (YOLO26x, YOLO26x + CA). Inferensi: conf 0,25, NMS IoU 0,45 
 
 Angka = bobot λ komponen (Pers. 3.10 proposal, tanpa suku ROI). Semua student juga memakai loss ground truth
 `DepthLoss26` (SILog + gradient matching) dengan bobot 1,0. CBAM pada P3/P4/P5 (layer 23–25). Batch 16 / 8 dan lr
-0,001 (n) / 0,0005 (x). Setelah training, setiap model dikalibrasi log-affine pada split **val**. Komponen dapat
+0,0003 (n) / 0,0001 (x) (keputusan H-8; Tabel 3.8: 0,001 / 0,0005), `warmup_bias_lr` 0 (H-9). Setelah training, setiap model dikalibrasi log-affine pada split **val**. Komponen dapat
 diubah tanpa mengubah kode, misalnya `--set kd.boundary.enabled=false kd.relative.weight=0.2`.
 
 ## 3. Penggunaan split

@@ -26,7 +26,7 @@ import numpy as np
 import torch
 
 import models  # noqa: F401
-from models.depth.yolo26_depth import load_model, preprocess
+from models.depth.yolo26_depth import load_model, preprocess, unletterbox
 from src.integration.object_distance import estimate_distance
 from src.integration.spatial_alignment import scale_boxes_to_depth, scale_intrinsics
 from src.navigation.direction_decision import decide_direction
@@ -132,12 +132,15 @@ class PerceptionPipeline:
 
     @torch.no_grad()
     def estimate_depth(self, bgr: np.ndarray) -> np.ndarray:
-        """Metric depth map (model resolution, or image resolution when ``depth.resolution: image``)."""
-        d = self.depth_model(preprocess(bgr, self.cfg["depth"]["imgsz"], self.device))
+        """Metric depth map of the whole frame, letterbox padding removed.
+
+        Model output resolution (1/4 of the letterboxed content), or image resolution when ``depth.resolution: image``.
+        """
+        imgsz = self.cfg["depth"]["imgsz"]
+        d = self.depth_model(preprocess(bgr, imgsz, self.device))
         d = d[0] if isinstance(d, (tuple, list)) else d
-        if self.cfg["depth"].get("resolution", "model") == "image":
-            d = torch.nn.functional.interpolate(d.float(), size=bgr.shape[:2], mode="bilinear", align_corners=True)
-        return d[0, 0].float().cpu().numpy()
+        out = bgr.shape[:2] if self.cfg["depth"].get("resolution", "model") == "image" else None
+        return unletterbox(d, bgr.shape[:2], imgsz, out)[0, 0].float().cpu().numpy()
 
     def distances(self, boxes: np.ndarray, conf: np.ndarray, depth: np.ndarray, image_hw: tuple[int, int]) -> list[dict]:
         """Per-object distance records (Sub-bab 3.2.4.6)."""

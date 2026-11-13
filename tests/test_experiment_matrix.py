@@ -59,8 +59,12 @@ def test_experiment_matrix(task, table):
         assert on == (comps if kd.get("enabled") else set()), eid
         x = arch.startswith("yolo26x")
         assert c["train"]["batch"] == (8 if x else 16), eid  # Tabel 3.7 / 3.8
+        assert c["train"]["warmup_bias_lr"] == 0.0, eid  # keputusan H-9
         if task == "depth":
-            assert c["train"]["lr0"] == (0.0005 if x else 0.001), eid
+            assert c["train"]["lr0"] == (0.0001 if x else 0.0003), eid  # keputusan H-8 (Tabel 3.8: 0,0005 / 0,001)
+            assert c["train"]["dlam"] == 1.0, eid  # keputusan H-10
+        else:
+            assert c["train"]["lr0"] == 0.001, eid
 
 
 def test_teachers_are_trained_before_their_students():

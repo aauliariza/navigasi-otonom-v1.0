@@ -1,0 +1,12 @@
+# Skenario SCRATCH: sama dengan configs/depth/full_kd.yaml, kecuali bagian yang tertulis di bawah.
+_base_: ../../../../configs/depth/full_kd.yaml
+model:
+  weights: null          # tanpa bobot pretrained: bobot awal acak
+train:
+  lr0: 0.001              # Tabel 3.8. LR kecil skenario pretrained (H-8) hanya untuk fine-tuning
+  epochs: 300
+  patience: 50
+output:
+  root: scenarios/scratch/outputs
+kd:
+  teacher_config: scenarios/scratch/configs/depth/teacher_x.yaml   # teacher hasil skenario ini, bukan teacher pretrained

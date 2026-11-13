@@ -13,10 +13,12 @@ train:
   batch: 16
   imgsz: 640
   optimizer: AdamW
-  lr0: 0.001
+  lr0: 0.0003          # fine-tuning student n (keputusan H-8; Tabel 3.8: 0,001). Teacher x: 0,0001 di confignya
   lrf: 0.01
   weight_decay: 0.0005
   warmup_epochs: 3
+  warmup_bias_lr: 0.0   # keputusan H-9: default Ultralytics 0,1 hanya untuk SGD; dengan AdamW merusak bias pretrained
+  dlam: 1.0            # SILog lambda (default Ultralytics); skala global ditangani kalibrasi log-affine (H-10)
   cos_lr: true
   patience: 25
   amp: true

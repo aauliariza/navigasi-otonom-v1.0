@@ -18,6 +18,7 @@ train:
   lrf: 0.01            # LR ratio
   weight_decay: 0.0005
   warmup_epochs: 3
+  warmup_bias_lr: 0.0  # keputusan H-9: default Ultralytics 0,1 hanya untuk SGD; dengan AdamW merusak bias pretrained
   cos_lr: true         # LR scheduler cosine
   patience: 25         # early stopping
   amp: true

@@ -1,0 +1,73 @@
+{
+  "experiment_id": "DEP-01",
+  "description": "DEP-01: YOLO26x-Depth (teacher), tanpa KD",
+  "config_source": "/home/comvis/Aulia/navigasi-otonom-v1.0/configs/depth/_common.yaml",
+  "started_at": "2026-11-11T21:48:34.425343+00:00",
+  "git_commit": "fbab993c01efb541d1fb334002cf5728eac4580f",
+  "environment": {
+    "python": "3.10.19",
+    "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+    "torch": "2.12.0+cu130",
+    "ultralytics": "8.4.194",
+    "cuda_available": true,
+    "cuda_version": "13.0",
+    "cudnn": 92000,
+    "gpu": "NVIDIA GeForce RTX 5070",
+    "gpu_memory_gb": 12.346785792
+  },
+  "ultralytics_args": {
+    "epochs": 100,
+    "batch": 8,
+    "imgsz": 640,
+    "optimizer": "AdamW",
+    "lr0": 0.0001,
+    "lrf": 0.01,
+    "weight_decay": 0.0005,
+    "warmup_epochs": 3,
+    "warmup_bias_lr": 0.0,
+    "dlam": 1.0,
+    "cos_lr": true,
+    "patience": 25,
+    "amp": true,
+    "seed": 42,
+    "deterministic": true,
+    "workers": 8,
+    "plots": true,
+    "hsv_h": 0.015,
+    "hsv_s": 0.7,
+    "hsv_v": 0.4,
+    "fliplr": 0.5,
+    "flipud": 0.0,
+    "translate": 0.1,
+    "scale": 0.0,
+    "degrees": 0.0,
+    "shear": 0.0,
+    "perspective": 0.0,
+    "task": "depth",
+    "model": "/home/comvis/Aulia/navigasi-otonom-v1.0/outputs/depth/DEP-01/model_yolo26x-depth.yaml",
+    "pretrained": "/home/comvis/Aulia/navigasi-otonom-v1.0/yolo26x-depth.pt",
+    "data": "/home/comvis/Aulia/navigasi-otonom-v1.0/datasets/sunrgbd_yolo/sunrgbd_depth.yaml",
+    "project": "/home/comvis/Aulia/navigasi-otonom-v1.0/outputs/depth",
+    "name": "DEP-01",
+    "exist_ok": true,
+    "verbose": true
+  },
+  "dataset_split": {
+    "data_yaml": "/home/comvis/Aulia/navigasi-otonom-v1.0/datasets/sunrgbd_yolo/sunrgbd_depth.yaml",
+    "splits_json": "/home/comvis/Aulia/navigasi-otonom-v1.0/datasets/sunrgbd_yolo/meta/splits.json",
+    "splits_sha256": "3ef38b5d84de71dd7eb3a6b72a93c6a6c82b223377ae017f4c961f6e7d12efa5",
+    "sizes": {
+      "train": 9294,
+      "val": 1041,
+      "test": 0
+    }
+  },
+  "loss_and_kd": {
+    "enabled": false
+  },
+  "calibration": {
+    "enabled": true,
+    "split": "val",
+    "max_images": 1000
+  }
+}

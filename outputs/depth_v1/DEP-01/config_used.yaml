@@ -1,0 +1,47 @@
+data:
+  yaml: datasets/sunrgbd_yolo/sunrgbd_depth.yaml
+  integrity_report: outputs/dataset/integrity_report.json
+  require_integrity: true
+output:
+  root: outputs
+  group: depth
+train:
+  epochs: 100
+  batch: 8
+  imgsz: 640
+  optimizer: AdamW
+  lr0: 0.0005
+  lrf: 0.01
+  weight_decay: 0.0005
+  warmup_epochs: 3
+  cos_lr: true
+  patience: 25
+  amp: true
+  seed: 42
+  deterministic: true
+  workers: 8
+  plots: true
+  hsv_h: 0.015
+  hsv_s: 0.7
+  hsv_v: 0.4
+  fliplr: 0.5
+  flipud: 0.0
+  translate: 0.1
+  scale: 0.0
+  degrees: 0.0
+  shear: 0.0
+  perspective: 0.0
+calibration:
+  enabled: true
+  split: val
+  max_images: 1000
+kd:
+  enabled: false
+_source_: /home/comvis/Aulia/navigasi-otonom-v1.0/configs/depth/_common.yaml
+experiment:
+  id: DEP-01
+  description: 'DEP-01: YOLO26x-Depth (teacher), tanpa KD'
+model:
+  arch: yolo26x-depth.yaml
+  weights: yolo26x-depth.pt
+  attention: none

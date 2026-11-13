@@ -1,0 +1,14 @@
+# Skenario SCRATCH: sama dengan configs/evaluation/detection.yaml, kecuali bagian yang tertulis di bawah.
+_base_: ../../../../configs/evaluation/detection.yaml
+output_dir: scenarios/scratch/outputs/evaluation/detection/{split}
+models:
+  - {name: "DET-01 YOLO26x", config: scenarios/scratch/configs/detection/teacher_x.yaml}
+  - {name: "DET-02 YOLO26n", config: scenarios/scratch/configs/detection/baseline.yaml}
+  - {name: "DET-03 YOLO26n FeatureKD", config: scenarios/scratch/configs/detection/feature_kd.yaml}
+  - {name: "DET-04 YOLO26n PredictionKD", config: scenarios/scratch/configs/detection/prediction_kd.yaml}
+  - {name: "DET-05 YOLO26n Feature+PredictionKD", config: scenarios/scratch/configs/detection/feature_prediction_kd.yaml}
+  - {name: "DET-06 YOLO26x+CA", config: scenarios/scratch/configs/detection/teacher_x_ca.yaml}
+  - {name: "DET-07 YOLO26n+CA", config: scenarios/scratch/configs/detection/student_n_ca.yaml}
+  - {name: "DET-08 YOLO26n FeatureKD (CA-teacher)", config: scenarios/scratch/configs/detection/ca_feature_kd.yaml}
+  - {name: "DET-09 YOLO26n PredictionKD (CA-teacher)", config: scenarios/scratch/configs/detection/ca_prediction_kd.yaml}
+  - {name: "DET-10 YOLO26n Feature+PredictionKD (CA-teacher)", config: scenarios/scratch/configs/detection/ca_feature_prediction_kd.yaml}

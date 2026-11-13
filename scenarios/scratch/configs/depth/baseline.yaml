@@ -1,0 +1,10 @@
+# Skenario SCRATCH: sama dengan configs/depth/baseline.yaml, kecuali bagian yang tertulis di bawah.
+_base_: ../../../../configs/depth/baseline.yaml
+model:
+  weights: null          # tanpa bobot pretrained: bobot awal acak
+train:
+  lr0: 0.001              # Tabel 3.8. LR kecil skenario pretrained (H-8) hanya untuk fine-tuning
+  epochs: 300
+  patience: 50
+output:
+  root: scenarios/scratch/outputs

@@ -1,0 +1,9 @@
+# Skenario SCRATCH: sama dengan configs/evaluation/selection.yaml, kecuali bagian yang tertulis di bawah.
+_base_: ../../../../configs/evaluation/selection.yaml
+detection:
+  results: scenarios/scratch/outputs/evaluation/detection/val/detection_results.csv
+  output_dir: scenarios/scratch/outputs/selection
+depth:
+  results: scenarios/scratch/outputs/evaluation/depth/val/depth_results.csv
+  output_dir: scenarios/scratch/outputs/selection
+selected_models_path: scenarios/scratch/outputs/selection/selected_models.json

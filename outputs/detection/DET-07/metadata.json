@@ -1,0 +1,71 @@
+{
+  "experiment_id": "DET-07",
+  "description": "DET-07: YOLO26n + Coordinate Attention (P3/P4/P5, layer 23-25), tanpa KD (pembanding efek CA pada model ringan)",
+  "config_source": "/home/comvis/Aulia/navigasi-otonom-v1.0/configs/detection/_common.yaml",
+  "started_at": "2026-11-13T13:21:55.614976+00:00",
+  "git_commit": "fbab993c01efb541d1fb334002cf5728eac4580f",
+  "environment": {
+    "python": "3.10.19",
+    "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+    "torch": "2.12.0+cu130",
+    "ultralytics": "8.4.194",
+    "cuda_available": true,
+    "cuda_version": "13.0",
+    "cudnn": 92000,
+    "gpu": "NVIDIA GeForce RTX 5070",
+    "gpu_memory_gb": 12.346785792
+  },
+  "ultralytics_args": {
+    "epochs": 100,
+    "batch": 16,
+    "imgsz": 640,
+    "optimizer": "AdamW",
+    "lr0": 0.001,
+    "lrf": 0.01,
+    "weight_decay": 0.0005,
+    "warmup_epochs": 3,
+    "warmup_bias_lr": 0.0,
+    "cos_lr": true,
+    "patience": 25,
+    "amp": true,
+    "seed": 42,
+    "deterministic": true,
+    "workers": 8,
+    "plots": true,
+    "hsv_h": 0.015,
+    "hsv_s": 0.7,
+    "hsv_v": 0.4,
+    "fliplr": 0.5,
+    "flipud": 0.0,
+    "translate": 0.1,
+    "scale": 0.5,
+    "degrees": 0.0,
+    "shear": 0.0,
+    "perspective": 0.0,
+    "mosaic": 1.0,
+    "mixup": 0.0,
+    "close_mosaic": 10,
+    "task": "detect",
+    "model": "/home/comvis/Aulia/navigasi-otonom-v1.0/outputs/detection/DET-07/model_yolo26n_ca.yaml",
+    "pretrained": "yolo26n.pt",
+    "data": "/home/comvis/Aulia/navigasi-otonom-v1.0/datasets/sunrgbd_yolo/sunrgbd_detect.yaml",
+    "project": "/home/comvis/Aulia/navigasi-otonom-v1.0/outputs/detection",
+    "name": "DET-07",
+    "exist_ok": true,
+    "verbose": true
+  },
+  "dataset_split": {
+    "data_yaml": "/home/comvis/Aulia/navigasi-otonom-v1.0/datasets/sunrgbd_yolo/sunrgbd_detect.yaml",
+    "splits_json": "/home/comvis/Aulia/navigasi-otonom-v1.0/datasets/sunrgbd_yolo/meta/splits.json",
+    "splits_sha256": "3ef38b5d84de71dd7eb3a6b72a93c6a6c82b223377ae017f4c961f6e7d12efa5",
+    "sizes": {
+      "train": 9294,
+      "val": 1041,
+      "test": 0
+    }
+  },
+  "loss_and_kd": {
+    "enabled": false
+  },
+  "calibration": null
+}

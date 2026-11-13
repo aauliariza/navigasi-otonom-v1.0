@@ -56,14 +56,20 @@ def operating_point(yolo, image_dir: Path, label_dir: Path, ev: dict) -> dict:
     op = ev["operating_point"]
     tp = fp = fn = 0
     images = sorted(p for p in image_dir.glob("*") if p.suffix.lower() in {".jpg", ".jpeg", ".png"})
-    for res in yolo.predict(source=[str(p) for p in images], imgsz=ev["imgsz"], conf=op["conf"], iou=op["iou_nms"], max_det=op["max_det"],
-                            device=ev["device"], stream=True, verbose=False):
+    seen = set()
+    # A directory source is read in batches of ``batch``; a list of paths would be loaded as ONE batch of every
+    # image (CUDA OOM on the full split).
+    for res in yolo.predict(source=str(image_dir), imgsz=ev["imgsz"], conf=op["conf"], iou=op["iou_nms"], max_det=op["max_det"],
+                            batch=ev["batch"], device=ev["device"], stream=True, verbose=False):
+        seen.add(Path(res.path).name)
         h, w = res.orig_shape
         gt = yolo_to_xyxy(read_yolo_label(label_dir / f"{Path(res.path).stem}.txt"), w, h)
         pred = res.boxes.xyxy.cpu().numpy() if res.boxes is not None else np.zeros((0, 4))
         scores = res.boxes.conf.cpu().numpy() if res.boxes is not None else np.zeros(0)
         a, b, c = match_detections(pred, scores, gt, op["match_iou"])
         tp, fp, fn = tp + a, fp + b, fn + c
+    if seen != {p.name for p in images}:
+        raise RuntimeError(f"Operating point covered {len(seen)} files in {image_dir}, expected the {len(images)} split images")
     return {"tp": tp, "fp": fp, "fn": fn, **precision_recall_f1(tp, fp, fn), "images": len(images)}
 
 
